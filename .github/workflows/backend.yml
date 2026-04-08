@@ -1,0 +1,3 @@
+# Phase 10: implement backend CI/CD workflow.
+# Triggers: PR and push to main for backend/**
+# Steps: install deps, lint, typecheck, pytest (mocked Azure), docker build, push to ACR, deploy Container App

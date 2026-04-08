@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and fill in values.
+# project_name  = "ats-agent"
+# environment   = "dev"
+# location      = "swedencentral"

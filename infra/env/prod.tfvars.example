@@ -1,0 +1,4 @@
+environment = "prod"
+location    = "swedencentral"
+
+# Phase 9: add prod-specific SKU, sizing, and retention overrides.

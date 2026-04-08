@@ -1,0 +1,4 @@
+environment = "dev"
+location    = "swedencentral"
+
+# Phase 9: add dev-specific SKU and sizing overrides.

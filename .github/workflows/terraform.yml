@@ -1,0 +1,5 @@
+# Phase 10: implement Terraform CI/CD workflow.
+# Triggers: PR and push to main for infra/**
+# PR: terraform fmt -check, init, validate, plan
+# Main: terraform apply -auto-approve with environment gate
+# Auth: GitHub OIDC to Azure (no stored secrets)

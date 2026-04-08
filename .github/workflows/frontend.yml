@@ -1,0 +1,3 @@
+# Phase 10: implement frontend CI/CD workflow.
+# Triggers: PR and push to main for frontend/**
+# Steps: npm ci, typecheck, lint, test, build, deploy to Static Web Apps
