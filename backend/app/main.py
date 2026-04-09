@@ -1,7 +1,7 @@
 """FastAPI application entrypoint.
 
-The app factory wires configuration, logging, lifespan events, and
-routers. Phase 2: minimal factory for test scaffolding with health endpoint.
+Wires configuration, logging, lifespan events, routers, and app state.
+Phase 5: health, upload, score, and SSE stream endpoints.
 """
 
 from __future__ import annotations
@@ -13,7 +13,10 @@ from fastapi import FastAPI
 
 from backend.app.config import Settings
 from backend.app.logging_config import configure_logging
-from backend.app.models.health import HealthResponse
+from backend.app.routers.health import router as health_router
+from backend.app.routers.score import SSERegistry
+from backend.app.routers.score import router as score_router
+from backend.app.routers.upload import router as upload_router
 
 
 @asynccontextmanager
@@ -48,14 +51,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=settings.version,
         lifespan=_lifespan,
     )
-    app.state.settings = settings
 
-    @app.get("/api/health", response_model=HealthResponse)
-    def health() -> HealthResponse:
-        s: Settings = app.state.settings
-        return HealthResponse(
-            version=s.version,
-            environment=s.environment.value,
-        )
+    # ── App state ──────────────────────────────────────────────
+    app.state.settings = settings
+    # In-memory stores for Phase 5. Phase 6 will wire Cosmos/Blob.
+    app.state.job_store: dict = {}
+    app.state.score_store: dict = {}
+    app.state.sse_registry = SSERegistry()
+    # Optional adapters — set by tests or Phase 6 worker wiring.
+    app.state.blob_adapter = None
+    app.state.cosmos_adapter = None
+
+    # ── Routers ────────────────────────────────────────────────
+    app.include_router(health_router)
+    app.include_router(upload_router)
+    app.include_router(score_router)
 
     return app

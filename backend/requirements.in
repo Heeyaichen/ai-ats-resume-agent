@@ -3,6 +3,7 @@
 # Reference: design spec Section 15 — do not blindly copy stale pins.
 
 fastapi>=0.111.0
+python-multipart>=0.0.9
 uvicorn[standard]>=0.29.0
 pydantic>=2.7.1
 pydantic-settings>=2.2.0
