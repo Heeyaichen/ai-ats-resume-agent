@@ -17,6 +17,7 @@ node_modules/
 *.tfstate.*
 *.tfplan
 terraform.tfvars
+.terraform.lock.hcl
 
 # IDE
 .vscode/
