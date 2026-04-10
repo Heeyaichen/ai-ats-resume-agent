@@ -1,4 +1,7 @@
 # Copy to terraform.tfvars and fill in values.
-# project_name  = "ats-agent"
-# environment   = "dev"
-# location      = "swedencentral"
+project_name = "ats-agent"
+environment  = "dev"
+location     = "swedencentral"
+
+# See env/dev.tfvars.example and env/prod.tfvars.example for
+# environment-specific SKU and sizing overrides.
