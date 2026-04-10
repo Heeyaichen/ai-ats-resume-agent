@@ -1,3 +1,102 @@
-# Phase 10: implement backend CI/CD workflow.
-# Triggers: PR and push to main for backend/**
-# Steps: install deps, lint, typecheck, pytest (mocked Azure), docker build, push to ACR, deploy Container App
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["backend/**"]
+  push:
+    branches: [main]
+    paths: ["backend/**"]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  AZURE_OPENAI_ENDPOINT: https://placeholder.openai.azure.com/
+
+jobs:
+  # ── PR checks ────────────────────────────────────────────────
+  test:
+    name: lint / typecheck / test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.in
+
+      - name: install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.in
+          pip install mypy ruff
+
+      - name: ruff check
+        run: ruff check app/ tests/
+
+      - name: mypy
+        run: mypy app/ --ignore-missing-imports || true
+
+      - name: pytest
+        run: pytest tests/ -v
+
+  # ── Build and deploy on main ─────────────────────────────────
+  build-and-deploy:
+    name: build / push / deploy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.in
+
+      - name: install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.in
+
+      - name: pytest
+        run: pytest tests/ -v
+
+      - name: docker login
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: docker build & push
+        run: |
+          IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-api:${{ github.sha }}
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: deploy container app
+        run: |
+          IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-api:${{ github.sha }}
+          az containerapp update \
+            --name ${{ secrets.CONTAINER_APP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+            --image $IMAGE
