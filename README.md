@@ -327,10 +327,10 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 │   │   ├── logging_config.py
 │   │   ├── main.py        # FastAPI app factory
 │   │   └── worker.py      # Service Bus worker with retry/dead-letter
-│   ├── function_trigger/  # Azure Function blob trigger
+│   ├── function_trigger/  # Azure Function blob trigger (has own requirements.in)
 │   ├── tests/             # pytest suite (147 tests)
 │   ├── Dockerfile
-│   └── requirements.in
+│   └── requirements.in    # FastAPI container deps (no azure-functions)
 ├── frontend/
 │   ├── src/
 │   │   ├── components/    # React UI components (7 components)
