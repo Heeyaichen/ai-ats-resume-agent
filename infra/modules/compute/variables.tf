@@ -31,6 +31,20 @@ variable "storage_access_key" {
   type      = string
   sensitive = true
 }
+variable "redis_host_name" { type = string }
+variable "redis_primary_key" {
+  type      = string
+  sensitive = true
+}
+variable "search_endpoint" { type = string }
+variable "search_primary_key" {
+  type      = string
+  sensitive = true
+}
+variable "application_insights_connection_string" {
+  type      = string
+  sensitive = true
+}
 
 # ── SKU / sizing ───────────────────────────────────────────────
 variable "acr_sku" {

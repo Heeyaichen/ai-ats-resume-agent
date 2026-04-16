@@ -106,3 +106,66 @@ resource "azurerm_role_assignment" "api_content_safety_user" {
   role_definition_name = "Cognitive Services User"
   principal_id         = var.api_identity_principal_id
 }
+
+# ── RBAC: Worker managed identity ──────────────────────────────
+# Worker runs the agent and needs the same service access as the API.
+
+resource "azurerm_role_assignment" "worker_blob_contributor" {
+  scope                = var.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_cosmos_contributor" {
+  scope                = var.cosmos_account_id
+  role_definition_name = "Cosmos DB Built-in Data Contributor"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_sb_receiver" {
+  scope                = var.servicebus_namespace_id
+  role_definition_name = "Azure Service Bus Data Receiver"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_openai_user" {
+  scope                = var.openai_account_id
+  role_definition_name = "Cognitive Services OpenAI User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_search_contributor" {
+  scope                = var.search_service_id
+  role_definition_name = "Search Index Data Contributor"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_keyvault_secrets_user" {
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_doc_intelligence_user" {
+  scope                = var.doc_intelligence_account_id
+  role_definition_name = "Cognitive Services User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_translator_user" {
+  scope                = var.translator_account_id
+  role_definition_name = "Cognitive Services User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_language_user" {
+  scope                = var.language_account_id
+  role_definition_name = "Cognitive Services User"
+  principal_id         = var.worker_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_content_safety_user" {
+  scope                = var.content_safety_account_id
+  role_definition_name = "Cognitive Services User"
+  principal_id         = var.worker_identity_principal_id
+}

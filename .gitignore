@@ -17,7 +17,8 @@ node_modules/
 *.tfstate.*
 *.tfplan
 terraform.tfvars
-.terraform.lock.hcl
+# Note: .terraform.lock.hcl is NOT ignored — it should be committed
+# for reproducible provider versions.
 
 # IDE
 .vscode/

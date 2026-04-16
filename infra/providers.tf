@@ -8,14 +8,20 @@ terraform {
     }
   }
 
-  # Backend configuration for remote state:
-  # Uncomment and fill in for your storage account.
-  # backend "azurerm" {
-  #   resource_group_name  = "tfstate-rg"
-  #   storage_account_name = "tfstatesa"
-  #   container_name       = "tfstate"
-  #   key                  = "ats-agent.tfstate"
-  # }
+  # Remote state backend — configured via -backend-config flags
+  # in CI (terraform.yml) or manual terraform init.
+  #
+  # Required -backend-config keys:
+  #   resource_group_name  = "<tfstate resource group>"
+  #   storage_account_name = "<tfstate storage account>"
+  #   container_name       = "<tfstate container>"
+  #   key                  = "<environment>.tfstate"
+  #
+  # The state storage account and container must be bootstrapped
+  # before the first terraform init. See README for bootstrap steps.
+  backend "azurerm" {
+    # All values supplied via -backend-config at init time.
+  }
 }
 
 provider "azurerm" {

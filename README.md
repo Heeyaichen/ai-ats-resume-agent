@@ -81,8 +81,8 @@ pip install -r requirements.in
 # Required environment variable (placeholder for local testing):
 export AZURE_OPENAI_ENDPOINT="https://placeholder.openai.azure.com/"
 
-# Run the API:
-uvicorn app.main:create_app --factory --reload --port 8000
+# Run the API (from repo root):
+uvicorn backend.app.main:create_app --factory --reload --port 8000
 
 # Run tests (all Azure/OpenAI clients are mocked):
 pytest tests/ -v
@@ -110,6 +110,28 @@ pytest tests/test_worker.py -v
 
 ## Terraform Deployment
 
+### Deployment Order
+
+1. **Configure Azure OIDC** — Create an Entra ID application registration and federated credential for your GitHub repo.
+2. **Bootstrap Terraform state storage** — Create a storage account and container for remote state before the first CI `terraform init`.
+3. **Configure GitHub secrets/variables** — See the required secrets table below.
+4. **Run Terraform plan/apply** — CI runs this automatically on push to `main`. For first-time setup, run manually.
+5. **Build/deploy API, worker, Function, frontend** — CI deploys these automatically after Terraform.
+
+### Bootstrap Terraform Remote State
+
+Before the first CI `terraform init`, create the state storage:
+
+```bash
+RESOURCE_GROUP="tfstate-rg"
+STORAGE_ACCOUNT="tfstate$RANDOM"
+az group create --name $RESOURCE_GROUP --location swedencentral
+az storage account create --name $STORAGE_ACCOUNT --resource-group $RESOURCE_GROUP --sku Standard_LRS
+az storage container create --name tfstate --account-name $STORAGE_ACCOUNT
+```
+
+Then set `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_CONTAINER` as GitHub secrets.
+
 ### Configure GitHub OIDC
 
 1. Create an Entra ID application registration and federated credential for your GitHub repo.
@@ -122,13 +144,28 @@ pytest tests/test_worker.py -v
 cd infra
 
 # Dev environment
-terraform init
+terraform init \
+  -backend-config="resource_group_name=<rg>" \
+  -backend-config="storage_account_name=<sa>" \
+  -backend-config="container_name=tfstate" \
+  -backend-config="key=dev.tfstate"
 terraform apply -var-file=env/dev.tfvars
 
 # Prod environment
-terraform init -backend-config="key=ats-agent-prod.tfstate"
+terraform init \
+  -backend-config="resource_group_name=<rg>" \
+  -backend-config="storage_account_name=<sa>" \
+  -backend-config="container_name=tfstate" \
+  -backend-config="key=prod.tfstate"
 terraform apply -var-file=env/prod.tfvars
 ```
+
+### Required GitHub Environments
+
+| Environment | Purpose |
+|-------------|---------|
+| `dev` | PR validation (terraform plan) |
+| `production` | Main-branch deploys (terraform apply, backend/frontend deploy) |
 
 ### Required GitHub Secrets
 
@@ -138,9 +175,18 @@ terraform apply -var-file=env/prod.tfvars
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 | `ACR_NAME` | Azure Container Registry name (no `.azurecr.io`) |
-| `CONTAINER_APP_NAME` | FastAPI Container App name |
+| `API_CONTAINER_APP_NAME` | FastAPI Container App name |
+| `WORKER_CONTAINER_APP_NAME` | Worker Container App name |
+| `FUNCTION_APP_NAME` | Function App name |
 | `RESOURCE_GROUP_NAME` | Resource group containing compute resources |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Static Web Apps deployment token |
+| `TF_STATE_RESOURCE_GROUP` | Resource group for Terraform state storage account |
+| `TF_STATE_STORAGE_ACCOUNT` | Storage account name for Terraform remote state |
+| `TF_STATE_CONTAINER` | Blob container name for Terraform state files |
+
+### API Management Note
+
+APIM is provisioned by Terraform (Developer SKU in dev) but does not yet enforce API policy (JWT validation, rate limiting, request forwarding to the FastAPI backend). The FastAPI Container App is publicly accessible via its external ingress. APIM policy configuration is a follow-up task after initial deployment.
 
 ## Environment Variable Reference
 
@@ -327,10 +373,11 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 │   │   ├── logging_config.py
 │   │   ├── main.py        # FastAPI app factory
 │   │   └── worker.py      # Service Bus worker with retry/dead-letter
-│   ├── function_trigger/  # Azure Function blob trigger (has own requirements.in)
+│   ├── function_trigger/  # Azure Function blob trigger (requirements.txt)
 │   ├── tests/             # pytest suite (147 tests)
-│   ├── Dockerfile
-│   └── requirements.in    # FastAPI container deps (no azure-functions)
+│   ├── Dockerfile         # Multi-target: api (uvicorn) and worker
+│   ├── run_worker.py      # Worker container entrypoint
+│   ├── requirements.in    # FastAPI + worker deps (no azure-functions)
 ├── frontend/
 │   ├── src/
 │   │   ├── components/    # React UI components (7 components)
@@ -366,4 +413,4 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 | 9 | Terraform modules | Done |
 | 10 | GitHub Actions CI/CD | Done |
 | 11 | README | Done |
-| 12 | Full local test + Terraform validation | Pending |
+| 12 | Full local test + Terraform validation | Done |

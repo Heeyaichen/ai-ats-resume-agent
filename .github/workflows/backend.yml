@@ -83,20 +83,55 @@ jobs:
       - name: pytest
         run: pytest tests/ -v
 
+      # ── Docker: API ───────────────────────────────────────────
       - name: docker login
         run: |
           az acr login --name ${{ secrets.ACR_NAME }}
 
-      - name: docker build & push
+      - name: build & push API image
         run: |
           IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-api:${{ github.sha }}
-          docker build -t $IMAGE .
+          docker build --target api -t $IMAGE .
           docker push $IMAGE
 
-      - name: deploy container app
+      - name: deploy API container app
         run: |
           IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-api:${{ github.sha }}
           az containerapp update \
-            --name ${{ secrets.CONTAINER_APP_NAME }} \
+            --name ${{ secrets.API_CONTAINER_APP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
             --image $IMAGE
+
+      # ── Docker: Worker ────────────────────────────────────────
+      - name: build & push worker image
+        run: |
+          IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-worker:${{ github.sha }}
+          docker build --target worker -t $IMAGE .
+          docker push $IMAGE
+
+      - name: deploy worker container app
+        run: |
+          IMAGE=${{ secrets.ACR_NAME }}.azurecr.io/ats-agent-worker:${{ github.sha }}
+          az containerapp update \
+            --name ${{ secrets.WORKER_CONTAINER_APP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+            --image $IMAGE
+
+      # ── Azure Function deploy ─────────────────────────────────
+      - name: package function app
+        run: |
+          mkdir -p /tmp/function-zip
+          cp function_trigger/function_app.py /tmp/function-zip/
+          cp function_trigger/host.json /tmp/function-zip/
+          cp function_trigger/requirements.txt /tmp/function-zip/
+          # Function imports from backend.app — include the package.
+          cp __init__.py /tmp/function-zip/backend/__init__.py
+          cp -r app/ /tmp/function-zip/backend/app/
+          cd /tmp/function-zip && zip -r /tmp/function-app.zip .
+
+      - name: deploy function app
+        run: |
+          az functionapp deployment source config-zip \
+            --name ${{ secrets.FUNCTION_APP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+            --src /tmp/function-app.zip

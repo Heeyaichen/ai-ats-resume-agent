@@ -1,4 +1,5 @@
 # Design spec Section 13.5: required outputs.
+# Additional outputs for CI/CD convenience.
 
 output "api_url" {
   description = "FastAPI Container App URL."
@@ -44,4 +45,36 @@ output "cdn_endpoint_host_name" {
 output "resource_group_name" {
   description = "Resource group name."
   value       = azurerm_resource_group.this.name
+}
+
+# ── CI/CD convenience outputs ──────────────────────────────────
+
+output "acr_name" {
+  description = "Container Registry name (for az acr login)."
+  value       = module.compute.acr_name
+}
+
+output "acr_login_server" {
+  description = "Container Registry login server."
+  value       = module.compute.acr_login_server
+}
+
+output "api_container_app_name" {
+  description = "API Container App name (for az containerapp update)."
+  value       = module.compute.api_container_app_name
+}
+
+output "worker_container_app_name" {
+  description = "Worker Container App name (for az containerapp update)."
+  value       = module.compute.worker_container_app_name
+}
+
+output "function_app_name" {
+  description = "Function App name (for az functionapp deploy)."
+  value       = module.compute.function_app_name
+}
+
+output "static_web_app_name" {
+  description = "Static Web App name."
+  value       = module.compute.static_web_app_name
 }

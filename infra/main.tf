@@ -79,14 +79,19 @@ module "compute" {
   tags                = var.tags
 
   # External service references.
-  openai_endpoint              = module.ai_services.openai_endpoint
-  openai_key                   = module.ai_services.openai_key
-  cosmos_endpoint              = module.data.cosmos_endpoint
-  cosmos_key                   = module.data.cosmos_key
-  servicebus_connection_string = module.data.servicebus_connection_string
-  storage_connection_string    = module.storage.storage_account_primary_connection_string
-  storage_account_name         = module.storage.storage_account_name
-  storage_access_key           = module.storage.storage_account_primary_access_key
+  openai_endpoint                        = module.ai_services.openai_endpoint
+  openai_key                             = module.ai_services.openai_key
+  cosmos_endpoint                        = module.data.cosmos_endpoint
+  cosmos_key                             = module.data.cosmos_key
+  servicebus_connection_string           = module.data.servicebus_connection_string
+  storage_connection_string              = module.storage.storage_account_primary_connection_string
+  storage_account_name                   = module.storage.storage_account_name
+  storage_access_key                     = module.storage.storage_account_primary_access_key
+  redis_host_name                        = module.data.redis_host_name
+  redis_primary_key                      = module.data.redis_primary_key
+  search_endpoint                        = module.data.search_endpoint
+  search_primary_key                     = module.data.search_primary_key
+  application_insights_connection_string = module.observability.application_insights_connection_string
 
   # SKU overrides.
   acr_sku              = var.acr_sku
@@ -128,6 +133,7 @@ module "security" {
 
   # Identity principal IDs.
   api_identity_principal_id      = module.compute.api_identity_principal_id
+  worker_identity_principal_id   = module.compute.worker_identity_principal_id
   function_identity_principal_id = module.compute.function_app_identity_principal_id
 
   # Resource IDs for RBAC scopes.

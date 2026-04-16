@@ -4,6 +4,22 @@
  * Design spec Sections 3.3, 8.1, 8.4.
  */
 
+# ── Managed Identities ─────────────────────────────────────────
+
+resource "azurerm_user_assigned_identity" "api" {
+  name                = "${var.project_name}-${var.environment}-api-id"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
+resource "azurerm_user_assigned_identity" "worker" {
+  name                = "${var.project_name}-${var.environment}-worker-id"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
 # ── Container Registry ─────────────────────────────────────────
 
 resource "azurerm_container_registry" "this" {
@@ -82,6 +98,10 @@ resource "azurerm_container_app" "api" {
         name        = "STORAGE_CONNECTION_STRING"
         secret_name = "storage-connection-string"
       }
+      env {
+        name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        secret_name = "app-insights-conn-str"
+      }
     }
   }
 
@@ -110,6 +130,10 @@ resource "azurerm_container_app" "api" {
     name  = "storage-connection-string"
     value = var.storage_connection_string
   }
+  secret {
+    name  = "app-insights-conn-str"
+    value = var.application_insights_connection_string
+  }
 }
 
 # ── Worker Container App ───────────────────────────────────────
@@ -123,12 +147,12 @@ resource "azurerm_container_app" "worker" {
 
   registry {
     server   = azurerm_container_registry.this.login_server
-    identity = azurerm_user_assigned_identity.api.id
+    identity = azurerm_user_assigned_identity.worker.id
   }
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api.id]
+    identity_ids = [azurerm_user_assigned_identity.worker.id]
   }
 
   template {
@@ -166,6 +190,26 @@ resource "azurerm_container_app" "worker" {
         name        = "COSMOS_KEY"
         secret_name = "cosmos-key"
       }
+      env {
+        name        = "STORAGE_CONNECTION_STRING"
+        secret_name = "storage-connection-string"
+      }
+      env {
+        name        = "REDIS_URL"
+        secret_name = "redis-url"
+      }
+      env {
+        name  = "SEARCH_ENDPOINT"
+        value = var.search_endpoint
+      }
+      env {
+        name        = "SEARCH_KEY"
+        secret_name = "search-key"
+      }
+      env {
+        name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        secret_name = "app-insights-conn-str"
+      }
     }
   }
 
@@ -180,6 +224,22 @@ resource "azurerm_container_app" "worker" {
   secret {
     name  = "cosmos-key"
     value = var.cosmos_key
+  }
+  secret {
+    name  = "storage-connection-string"
+    value = var.storage_connection_string
+  }
+  secret {
+    name  = "redis-url"
+    value = "rediss://:${var.redis_primary_key}@${var.redis_host_name}:6380"
+  }
+  secret {
+    name  = "search-key"
+    value = var.search_primary_key
+  }
+  secret {
+    name  = "app-insights-conn-str"
+    value = var.application_insights_connection_string
   }
 }
 
@@ -208,13 +268,15 @@ resource "azurerm_linux_function_app" "this" {
   }
 
   app_settings = {
-    "AzureWebJobsStorage"      = var.storage_connection_string
-    "SERVICEBUS_QUEUE_NAME"    = "ats-agent-jobs"
-    "ServiceBusConnection"     = var.servicebus_connection_string
-    "AZURE_OPENAI_ENDPOINT"    = var.openai_endpoint
-    "COSMOS_ENDPOINT"          = var.cosmos_endpoint
-    "FUNCTIONS_WORKER_RUNTIME" = "python"
-    "WEBSITE_RUN_FROM_PACKAGE" = "1"
+    "AzureWebJobsStorage"                   = var.storage_connection_string
+    "SERVICEBUS_QUEUE_NAME"                 = "ats-agent-jobs"
+    "ServiceBusConnection"                  = var.servicebus_connection_string
+    "AZURE_OPENAI_ENDPOINT"                 = var.openai_endpoint
+    "COSMOS_ENDPOINT"                       = var.cosmos_endpoint
+    "COSMOS_KEY"                            = var.cosmos_key
+    "FUNCTIONS_WORKER_RUNTIME"              = "python"
+    "WEBSITE_RUN_FROM_PACKAGE"              = "1"
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.application_insights_connection_string
   }
 
   site_config {

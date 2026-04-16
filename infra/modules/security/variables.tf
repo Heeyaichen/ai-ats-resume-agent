@@ -10,6 +10,7 @@ variable "tags" {
 
 # Identity principal IDs for RBAC.
 variable "api_identity_principal_id" { type = string }
+variable "worker_identity_principal_id" { type = string }
 variable "function_identity_principal_id" { type = string }
 
 # Resource IDs for role assignment scopes.
