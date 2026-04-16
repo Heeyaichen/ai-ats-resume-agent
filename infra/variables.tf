@@ -103,9 +103,10 @@ variable "static_web_app_sku" {
   default = "Free"
 }
 
-variable "cdn_sku" {
-  type    = string
-  default = "Standard_Microsoft"
+variable "frontdoor_sku" {
+  description = "Azure Front Door SKU (Standard_AzureFrontDoor or Premium_AzureFrontDoor)."
+  type        = string
+  default     = "Standard_AzureFrontDoor"
 }
 
 variable "apim_sku" {

@@ -101,7 +101,7 @@ module "compute" {
   worker_memory        = var.worker_memory
   function_sku         = var.function_sku
   static_web_app_sku   = var.static_web_app_sku
-  cdn_sku              = var.cdn_sku
+  frontdoor_sku        = var.frontdoor_sku
   apim_sku             = var.apim_sku
   apim_publisher_email = var.apim_publisher_email
 }

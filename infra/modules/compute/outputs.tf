@@ -42,8 +42,9 @@ output "worker_container_app_name" {
   value = azurerm_container_app.worker.name
 }
 
-output "cdn_endpoint_host_name" {
-  value = azurerm_cdn_endpoint.this.fqdn
+output "frontdoor_endpoint_host_name" {
+  description = "Front Door endpoint hostname."
+  value       = azurerm_cdn_frontdoor_endpoint.this.host_name
 }
 
 output "container_app_environment_id" {

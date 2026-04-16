@@ -75,9 +75,9 @@ variable "static_web_app_sku" {
   type    = string
   default = "Free"
 }
-variable "cdn_sku" {
+variable "frontdoor_sku" {
   type    = string
-  default = "Standard_Microsoft"
+  default = "Standard_AzureFrontDoor"
 }
 variable "apim_sku" {
   type    = string

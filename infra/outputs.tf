@@ -37,9 +37,9 @@ output "application_insights_connection_string" {
   sensitive   = true
 }
 
-output "cdn_endpoint_host_name" {
-  description = "CDN endpoint FQDN."
-  value       = module.compute.cdn_endpoint_host_name
+output "frontdoor_endpoint_host_name" {
+  description = "Front Door endpoint hostname (replaces deprecated CDN)."
+  value       = module.compute.frontdoor_endpoint_host_name
 }
 
 output "resource_group_name" {

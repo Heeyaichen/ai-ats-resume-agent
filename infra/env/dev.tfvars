@@ -1,0 +1,16 @@
+environment = "dev"
+location    = "swedencentral"
+
+# Dev: cost-optimized SKUs
+storage_replication_type = "LRS"
+openai_sku               = "S0"
+openai_capacity          = 30
+cosmos_throughput        = 400
+redis_sku                = "Basic"
+redis_capacity           = 0
+search_sku               = "basic"
+search_replicas          = 1
+apim_sku                 = "Developer_1"
+static_web_app_sku       = "Free"
+acr_sku                  = "Basic"
+frontdoor_sku            = "Standard_AzureFrontDoor"

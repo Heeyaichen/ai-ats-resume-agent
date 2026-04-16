@@ -77,7 +77,7 @@ resource "azurerm_cosmosdb_sql_container" "review_flags" {
 # ── Service Bus ────────────────────────────────────────────────
 
 resource "azurerm_servicebus_namespace" "this" {
-  name                = "${var.project_name}-${var.environment}-sb"
+  name                = "${var.project_name}-${var.environment}-bus"
   resource_group_name = var.resource_group_name
   location            = var.location
   sku                 = "Standard"

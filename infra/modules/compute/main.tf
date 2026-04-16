@@ -296,26 +296,60 @@ resource "azurerm_static_web_app" "this" {
   tags                = var.tags
 }
 
-# ── CDN ────────────────────────────────────────────────────────
+# ── Front Door (edge delivery for Static Web App) ─────────────
 
-resource "azurerm_cdn_profile" "this" {
-  name                = "${var.project_name}-${var.environment}-cdn"
+resource "azurerm_cdn_frontdoor_profile" "this" {
+  name                = "${var.project_name}-${var.environment}-fd"
   resource_group_name = var.resource_group_name
-  location            = var.location
-  sku                 = var.cdn_sku
+  sku_name            = var.frontdoor_sku
   tags                = var.tags
 }
 
-resource "azurerm_cdn_endpoint" "this" {
-  name                = "${replace(var.project_name, "-", "")}${var.environment}cdn"
-  profile_name        = azurerm_cdn_profile.this.name
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  origin {
-    name      = "staticwebapp"
-    host_name = azurerm_static_web_app.this.default_host_name
+resource "azurerm_cdn_frontdoor_origin_group" "this" {
+  name                     = "${var.project_name}-${var.environment}-og"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+
+  load_balancing {
+    sample_size                 = 4
+    successful_samples_required = 3
   }
-  tags = var.tags
+
+  health_probe {
+    protocol            = "Https"
+    interval_in_seconds = 100
+  }
+}
+
+resource "azurerm_cdn_frontdoor_origin" "swa" {
+  name                          = "staticwebapp"
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this.id
+  enabled                       = true
+
+  host_name                    = azurerm_static_web_app.this.default_host_name
+  http_port                    = 80
+  https_port                   = 443
+  origin_host_header           = azurerm_static_web_app.this.default_host_name
+  priority                     = 1
+  weight                       = 1000
+  certificate_name_check_enabled = false
+}
+
+resource "azurerm_cdn_frontdoor_endpoint" "this" {
+  name                     = "${replace(var.project_name, "-", "")}${var.environment}fd"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  tags                     = var.tags
+}
+
+resource "azurerm_cdn_frontdoor_route" "this" {
+  name                          = "swa-route"
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.swa.id]
+  supported_protocols           = ["Https"]
+  patterns_to_match             = ["/*"]
+  forwarding_protocol           = "HttpsOnly"
+  link_to_default_domain        = true
+  https_redirect_enabled        = true
 }
 
 # ── API Management ─────────────────────────────────────────────
