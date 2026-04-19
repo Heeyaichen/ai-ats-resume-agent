@@ -31,12 +31,16 @@ module "ai_services" {
   resource_group_name = azurerm_resource_group.this.name
   tags                = var.tags
 
-  openai_sku           = var.openai_sku
-  openai_capacity      = var.openai_capacity
-  doc_intelligence_sku = var.doc_intelligence_sku
-  translator_sku       = var.translator_sku
-  language_sku         = var.language_sku
-  content_safety_sku   = var.content_safety_sku
+  openai_sku                     = var.openai_sku
+  openai_capacity                = var.openai_capacity
+  openai_chat_model_name         = var.openai_chat_model_name
+  openai_chat_model_version      = var.openai_chat_model_version
+  openai_embedding_model_name    = var.openai_embedding_model_name
+  openai_embedding_model_version = var.openai_embedding_model_version
+  doc_intelligence_sku           = var.doc_intelligence_sku
+  translator_sku                 = var.translator_sku
+  language_sku                   = var.language_sku
+  content_safety_sku             = var.content_safety_sku
 }
 
 # ── Data ───────────────────────────────────────────────────────
@@ -94,16 +98,18 @@ module "compute" {
   application_insights_connection_string = module.observability.application_insights_connection_string
 
   # SKU overrides.
-  acr_sku              = var.acr_sku
-  api_cpu              = var.api_cpu
-  api_memory           = var.api_memory
-  worker_cpu           = var.worker_cpu
-  worker_memory        = var.worker_memory
-  function_sku         = var.function_sku
-  static_web_app_sku   = var.static_web_app_sku
-  frontdoor_sku        = var.frontdoor_sku
-  apim_sku             = var.apim_sku
-  apim_publisher_email = var.apim_publisher_email
+  acr_sku                 = var.acr_sku
+  api_cpu                 = var.api_cpu
+  api_memory              = var.api_memory
+  worker_cpu              = var.worker_cpu
+  worker_memory           = var.worker_memory
+  function_sku            = var.function_sku
+  static_web_app_sku      = var.static_web_app_sku
+  static_web_app_location = var.static_web_app_location
+  frontdoor_sku           = var.frontdoor_sku
+  enable_frontdoor        = var.enable_frontdoor
+  apim_sku                = var.apim_sku
+  apim_publisher_email    = var.apim_publisher_email
 }
 
 # ── Observability ──────────────────────────────────────────────
@@ -146,6 +152,7 @@ module "security" {
   language_account_id         = module.ai_services.language_id
   content_safety_account_id   = module.ai_services.content_safety_id
   search_service_id           = module.data.search_service_id
+  acr_id                      = module.compute.acr_id
 }
 
 data "azurerm_client_config" "current" {}

@@ -51,6 +51,11 @@ variable "acr_sku" {
   type    = string
   default = "Basic"
 }
+variable "bootstrap_image" {
+  type        = string
+  description = "Placeholder image for initial Container App creation (replaced by CI/CD)."
+  default     = "mcr.microsoft.com/azure-functions/base:4-python3.11"
+}
 variable "api_cpu" {
   type    = string
   default = "0.5"
@@ -75,9 +80,19 @@ variable "static_web_app_sku" {
   type    = string
   default = "Free"
 }
+variable "static_web_app_location" {
+  type        = string
+  description = "Location for Static Web App (must be a supported region)."
+  default     = "westeurope"
+}
 variable "frontdoor_sku" {
   type    = string
   default = "Standard_AzureFrontDoor"
+}
+variable "enable_frontdoor" {
+  type        = bool
+  description = "Enable Azure Front Door edge delivery. Disable on subscriptions that do not support Front Door."
+  default     = false
 }
 variable "apim_sku" {
   type    = string

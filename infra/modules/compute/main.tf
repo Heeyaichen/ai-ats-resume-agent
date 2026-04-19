@@ -62,7 +62,7 @@ resource "azurerm_container_app" "api" {
   template {
     container {
       name   = "api"
-      image  = "${azurerm_container_registry.this.login_server}/ats-agent-api:latest"
+      image  = var.bootstrap_image
       cpu    = tonumber(var.api_cpu)
       memory = var.api_memory
 
@@ -158,7 +158,7 @@ resource "azurerm_container_app" "worker" {
   template {
     container {
       name   = "worker"
-      image  = "${azurerm_container_registry.this.login_server}/ats-agent-worker:latest"
+      image  = var.bootstrap_image
       cpu    = tonumber(var.worker_cpu)
       memory = var.worker_memory
 
@@ -291,14 +291,17 @@ resource "azurerm_linux_function_app" "this" {
 resource "azurerm_static_web_app" "this" {
   name                = "${var.project_name}-${var.environment}-swa"
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = var.static_web_app_location
   sku_tier            = var.static_web_app_sku
   tags                = var.tags
 }
 
 # ── Front Door (edge delivery for Static Web App) ─────────────
+# Optional: enable with var.enable_frontdoor. Disabled by default
+# for subscriptions that do not support Front Door (e.g. student/free).
 
 resource "azurerm_cdn_frontdoor_profile" "this" {
+  count               = var.enable_frontdoor ? 1 : 0
   name                = "${var.project_name}-${var.environment}-fd"
   resource_group_name = var.resource_group_name
   sku_name            = var.frontdoor_sku
@@ -306,8 +309,9 @@ resource "azurerm_cdn_frontdoor_profile" "this" {
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "this" {
+  count                    = var.enable_frontdoor ? 1 : 0
   name                     = "${var.project_name}-${var.environment}-og"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this[0].id
 
   load_balancing {
     sample_size                 = 4
@@ -321,30 +325,33 @@ resource "azurerm_cdn_frontdoor_origin_group" "this" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "swa" {
+  count                         = var.enable_frontdoor ? 1 : 0
   name                          = "staticwebapp"
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this[0].id
   enabled                       = true
 
-  host_name                    = azurerm_static_web_app.this.default_host_name
-  http_port                    = 80
-  https_port                   = 443
-  origin_host_header           = azurerm_static_web_app.this.default_host_name
-  priority                     = 1
-  weight                       = 1000
+  host_name                      = azurerm_static_web_app.this.default_host_name
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = azurerm_static_web_app.this.default_host_name
+  priority                       = 1
+  weight                         = 1000
   certificate_name_check_enabled = false
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "this" {
+  count                    = var.enable_frontdoor ? 1 : 0
   name                     = "${replace(var.project_name, "-", "")}${var.environment}fd"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this[0].id
   tags                     = var.tags
 }
 
 resource "azurerm_cdn_frontdoor_route" "this" {
+  count                         = var.enable_frontdoor ? 1 : 0
   name                          = "swa-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.swa.id]
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this[0].id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this[0].id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.swa[0].id]
   supported_protocols           = ["Https"]
   patterns_to_match             = ["/*"]
   forwarding_protocol           = "HttpsOnly"

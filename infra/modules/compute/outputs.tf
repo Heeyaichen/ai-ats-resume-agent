@@ -18,6 +18,10 @@ output "acr_name" {
   value = azurerm_container_registry.this.name
 }
 
+output "acr_id" {
+  value = azurerm_container_registry.this.id
+}
+
 output "function_app_identity_principal_id" {
   value = azurerm_linux_function_app.this.identity[0].principal_id
 }
@@ -43,8 +47,8 @@ output "worker_container_app_name" {
 }
 
 output "frontdoor_endpoint_host_name" {
-  description = "Front Door endpoint hostname."
-  value       = azurerm_cdn_frontdoor_endpoint.this.host_name
+  description = "Front Door endpoint hostname (empty if Front Door is disabled)."
+  value       = var.enable_frontdoor ? azurerm_cdn_frontdoor_endpoint.this[0].host_name : ""
 }
 
 output "container_app_environment_id" {

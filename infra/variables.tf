@@ -46,6 +46,28 @@ variable "openai_capacity" {
   default = 30
 }
 
+variable "openai_chat_model_name" {
+  type        = string
+  description = "Azure OpenAI chat model name. Must be available in your region."
+  default     = "gpt-4o"
+}
+
+variable "openai_chat_model_version" {
+  type        = string
+  description = "Azure OpenAI chat model version. Must be currently supported."
+  default     = "2025-01-01-preview"
+}
+
+variable "openai_embedding_model_name" {
+  type    = string
+  default = "text-embedding-ada-002"
+}
+
+variable "openai_embedding_model_version" {
+  type    = string
+  default = "2"
+}
+
 variable "doc_intelligence_sku" {
   type    = string
   default = "S0"
@@ -103,10 +125,22 @@ variable "static_web_app_sku" {
   default = "Free"
 }
 
+variable "static_web_app_location" {
+  type        = string
+  description = "Location for Static Web App (must be a supported region). swedencentral is not supported."
+  default     = "westeurope"
+}
+
 variable "frontdoor_sku" {
-  description = "Azure Front Door SKU (Standard_AzureFrontDoor or Premium_AzureFrontDoor)."
+  description = "Azure Front Door SKU (only used when enable_frontdoor=true)."
   type        = string
   default     = "Standard_AzureFrontDoor"
+}
+
+variable "enable_frontdoor" {
+  description = "Enable Azure Front Door. Disable on subscriptions that restrict Front Door."
+  type        = bool
+  default     = false
 }
 
 variable "apim_sku" {

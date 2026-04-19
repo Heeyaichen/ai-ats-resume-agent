@@ -25,11 +25,11 @@ resource "azurerm_role_assignment" "api_blob_contributor" {
   principal_id         = var.api_identity_principal_id
 }
 
-resource "azurerm_role_assignment" "api_cosmos_contributor" {
-  scope                = var.cosmos_account_id
-  role_definition_name = "Cosmos DB Built-in Data Contributor"
-  principal_id         = var.api_identity_principal_id
-}
+# Cosmos DB access uses key-based auth (COSMOS_KEY).
+# Data-plane RBAC roles ("Cosmos DB Built-in Data Contributor/Reader")
+# require cosmos_sql_role_definition resources and are not needed
+# while key-based auth is in use. Re-enable when migrating to
+# managed identity Cosmos access.
 
 resource "azurerm_role_assignment" "api_sb_receiver" {
   scope                = var.servicebus_namespace_id
@@ -69,11 +69,7 @@ resource "azurerm_role_assignment" "func_sb_sender" {
   principal_id         = var.function_identity_principal_id
 }
 
-resource "azurerm_role_assignment" "func_cosmos_reader" {
-  scope                = var.cosmos_account_id
-  role_definition_name = "Cosmos DB Built-in Data Reader"
-  principal_id         = var.function_identity_principal_id
-}
+# Cosmos DB key-based auth — no data-plane RBAC needed (see above).
 
 resource "azurerm_role_assignment" "func_keyvault_secrets_user" {
   scope                = azurerm_key_vault.this.id
@@ -107,6 +103,20 @@ resource "azurerm_role_assignment" "api_content_safety_user" {
   principal_id         = var.api_identity_principal_id
 }
 
+# ── RBAC: ACR pull for Container Apps ───────────────────────────
+
+resource "azurerm_role_assignment" "api_acrpull" {
+  scope                = var.acr_id
+  role_definition_name = "AcrPull"
+  principal_id         = var.api_identity_principal_id
+}
+
+resource "azurerm_role_assignment" "worker_acrpull" {
+  scope                = var.acr_id
+  role_definition_name = "AcrPull"
+  principal_id         = var.worker_identity_principal_id
+}
+
 # ── RBAC: Worker managed identity ──────────────────────────────
 # Worker runs the agent and needs the same service access as the API.
 
@@ -116,11 +126,7 @@ resource "azurerm_role_assignment" "worker_blob_contributor" {
   principal_id         = var.worker_identity_principal_id
 }
 
-resource "azurerm_role_assignment" "worker_cosmos_contributor" {
-  scope                = var.cosmos_account_id
-  role_definition_name = "Cosmos DB Built-in Data Contributor"
-  principal_id         = var.worker_identity_principal_id
-}
+# Cosmos DB key-based auth — no data-plane RBAC needed (see above).
 
 resource "azurerm_role_assignment" "worker_sb_receiver" {
   scope                = var.servicebus_namespace_id

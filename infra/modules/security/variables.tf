@@ -23,3 +23,4 @@ variable "translator_account_id" { type = string }
 variable "language_account_id" { type = string }
 variable "content_safety_account_id" { type = string }
 variable "search_service_id" { type = string }
+variable "acr_id" { type = string }

@@ -43,22 +43,7 @@ resource "azurerm_monitor_metric_alert" "sb_queue_depth" {
   tags = var.tags
 }
 
-resource "azurerm_monitor_metric_alert" "container_restart" {
-  name                = "${var.project_name}-${var.environment}-container-restart"
-  resource_group_name = var.resource_group_name
-  scopes              = [var.container_app_environment_id]
-  description         = "Container App restart loop detected"
-  severity            = 1
-  frequency           = "PT1M"
-  window_size         = "PT5M"
-
-  criteria {
-    metric_namespace = "Microsoft.App/managedEnvironments"
-    metric_name      = "RestartCount"
-    aggregation      = "Total"
-    operator         = "GreaterThan"
-    threshold        = 3
-  }
-
-  tags = var.tags
-}
+# TODO: Container restart alert requires scoping to individual
+# Container Apps (not the environment). Add per-app restart alerts
+# after initial deployment, using metric_namespace
+# "Microsoft.App/containerApps" and metric_name "RestartCount".
