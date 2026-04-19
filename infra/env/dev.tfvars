@@ -16,8 +16,8 @@ acr_sku                  = "Basic"
 frontdoor_sku            = "Standard_AzureFrontDoor"
 
 # OpenAI model configuration — use models available in this subscription.
-openai_chat_model_name    = "gpt-4o-mini"
-openai_chat_model_version = "2024-07-18"
+openai_chat_model_name    = "gpt-4o"
+openai_chat_model_version = "2024-11-20"
 
 # Static Web Apps is not available in swedencentral.
 static_web_app_location = "westeurope"

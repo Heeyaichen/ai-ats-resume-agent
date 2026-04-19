@@ -54,7 +54,7 @@ variable "acr_sku" {
 variable "bootstrap_image" {
   type        = string
   description = "Placeholder image for initial Container App creation (replaced by CI/CD)."
-  default     = "mcr.microsoft.com/azure-functions/base:4-python3.11"
+  default     = "mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine"
 }
 variable "api_cpu" {
   type    = string
