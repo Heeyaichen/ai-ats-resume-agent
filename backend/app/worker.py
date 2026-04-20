@@ -39,6 +39,14 @@ _BACKOFF_BASE_SECONDS = 2
 _MAX_BACKOFF_SECONDS = 30
 
 
+def _get_cosmos_adapter(settings: Settings) -> Any:
+    """Create a CosmosAdapter if settings have Cosmos config, else None."""
+    if settings.cosmos_endpoint and settings.cosmos_key:
+        from backend.app.services.cosmos import CosmosAdapter
+        return CosmosAdapter(settings)
+    return None
+
+
 def _determine_final_status(result: AgentResult) -> JobStatus:
     """Map agent result to final job status."""
     if result.error is not None:
@@ -133,6 +141,12 @@ async def process_message(
 
     # ── Look up job record ────────────────────────────────────────
     job = job_store.get(job_id)
+
+    # Try Cosmos if not found in-memory.
+    cosmos_adapter = _get_cosmos_adapter(settings)
+    if job is None and cosmos_adapter is not None:
+        job = await cosmos_adapter.get_job(job_id)
+
     if job is None:
         logger.error("Job %s not found in store", job_id)
         raise ValueError(f"Job {job_id} not found.")
@@ -140,6 +154,8 @@ async def process_message(
     # ── Update job status to agent_running ────────────────────────
     job.status = JobStatus.AGENT_RUNNING
     job.updated_at = _utcnow()
+    if cosmos_adapter is not None:
+        await cosmos_adapter.upsert_job(job)
 
     # ── Set up agent runner ───────────────────────────────────────
     if agent_runner_factory is not None:
@@ -147,6 +163,19 @@ async def process_message(
     else:
         policy = AgentPolicy(settings)
         executor = ToolExecutor(settings, policy)
+
+        # Wire service adapters to tool executor.
+        from backend.app.agent.tool_adapters import register_all_adapters
+        blob_adapter = None
+        if settings.storage_connection_string:
+            from backend.app.services.blob_storage import BlobStorageAdapter
+            blob_adapter = BlobStorageAdapter(settings)
+        register_all_adapters(
+            executor, settings,
+            cosmos_adapter=cosmos_adapter,
+            blob_adapter=blob_adapter,
+        )
+
         runner = AgentRunner(settings, policy, executor)
 
     memory = AgentMemory(
@@ -171,10 +200,31 @@ async def process_message(
     score_data = _build_score_record(job_id, result)
     if score_data is not None:
         score_store[job_id] = score_data
+        if cosmos_adapter is not None:
+            from backend.app.models.scores import ScoreBreakdown as SB, ScoreRecord
+            bd = score_data.get("breakdown", {})
+            score_record = ScoreRecord(
+                job_id=job_id,
+                score=score_data["score"],
+                breakdown=SB(
+                    keyword_match=bd.get("keyword_match", 0),
+                    experience_alignment=bd.get("experience_alignment", 0),
+                    skills_coverage=bd.get("skills_coverage", 0),
+                ),
+                matched_keywords=score_data.get("matched_keywords", []),
+                missing_keywords=score_data.get("missing_keywords", []),
+                semantic_similarity=score_data.get("semantic_similarity"),
+                fit_summary=score_data.get("fit_summary"),
+                human_review_required=score_data.get("human_review_required", False),
+                human_review_reason=score_data.get("human_review_reason"),
+            )
+            await cosmos_adapter.upsert_score(score_record)
 
     # Persist trace.
     trace_record = _build_trace_record(job_id, memory)
     trace_store[job_id] = trace_record
+    if cosmos_adapter is not None:
+        await cosmos_adapter.upsert_trace(trace_record)
 
     # Persist review flag if needed.
     if result.human_review_required and result.human_review_reason:
@@ -186,10 +236,21 @@ async def process_message(
             created_by=ReviewCreator.AGENT if result.error is None else ReviewCreator.WORKER,
         )
         review_store.setdefault(job_id, []).append(review_flag)
+        if cosmos_adapter is not None:
+            from backend.app.models.tools import FlagForHumanReviewInput
+            await cosmos_adapter.flag_for_human_review(
+                FlagForHumanReviewInput(
+                    job_id=job_id,
+                    reason=result.human_review_reason,
+                    severity=review_flag.severity.value,
+                ),
+            )
 
     # Update job record.
     job.status = final_status
     job.updated_at = _utcnow()
+    if cosmos_adapter is not None:
+        await cosmos_adapter.upsert_job(job)
 
     logger.info(
         "Job %s completed with status %s (score=%s, iterations=%d, duration=%dms)",

@@ -37,6 +37,27 @@ _FIT_SUMMARY_SYSTEM_PROMPT = (
 )
 
 
+def build_async_openai_client(
+    endpoint: str,
+    api_key: str | None,
+    api_version: str,
+) -> Any:
+    """Build an AsyncAzureOpenAI client from connection parameters.
+
+    Shared by OpenAIAdapter and AgentRunner so connection logic lives
+    in one place.
+    """
+    from openai import AsyncAzureOpenAI
+
+    kwargs: dict[str, Any] = {
+        "azure_endpoint": endpoint,
+        "api_version": api_version,
+    }
+    if api_key:
+        kwargs["api_key"] = api_key
+    return AsyncAzureOpenAI(**kwargs)
+
+
 class OpenAIAdapter:
     """Wraps Azure OpenAI for scoring, fit summary, and embeddings."""
 
@@ -138,15 +159,11 @@ class OpenAIAdapter:
         return response.data[0].embedding
 
     def _build_chat_client(self) -> Any:
-        from openai import AsyncAzureOpenAI
-
-        kwargs: dict[str, Any] = {
-            "azure_endpoint": self._endpoint,
-            "api_version": self._api_version,
-        }
-        if self._key:
-            kwargs["api_key"] = self._key
-        return AsyncAzureOpenAI(**kwargs)
+        return build_async_openai_client(
+            endpoint=self._endpoint,
+            api_key=self._key,
+            api_version=self._api_version,
+        )
 
     def _build_embedding_client(self) -> Any:
         # Same client works for both chat and embeddings.

@@ -38,7 +38,9 @@ class ContentSafetyAdapter:
 
         logger.info("Running content safety analysis")
 
-        response = await client.analyze_text(text)
+        from azure.ai.contentsafety.models import AnalyzeTextOptions
+        request = AnalyzeTextOptions(text=text)
+        response = client.analyze_text(request)
 
         safety_flagged = False
         safety_categories: list[str] = []

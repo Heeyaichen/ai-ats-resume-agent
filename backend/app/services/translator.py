@@ -22,7 +22,11 @@ _DETECTION_CHAR_LIMIT = 500
 
 
 class TranslatorAdapter:
-    """Wraps Azure AI Translator for language detection and translation."""
+    """Wraps Azure AI Translator for language detection and translation.
+
+    Uses the Translator REST API via httpx since azure-ai-translation-document
+    is for document translation, not text detection/translation.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self._endpoint = settings.translator_endpoint
@@ -39,18 +43,35 @@ class TranslatorAdapter:
 
         Passes at most the first 500 safe characters per spec.
         """
-        if client is None:
-            client = self._build_client()
+        import httpx
 
         sample = input_data.text[:_DETECTION_CHAR_LIMIT]
         logger.info("Detecting language (sample length=%d)", len(sample))
 
-        response = await client.detect(sample)
-        detection = response[0] if response else {}
+        url = f"{self._endpoint.rstrip('/')}/detect?api-version=3.0"
+        headers = {
+            "Ocp-Apim-Subscription-Key": self._key,
+            "Content-Type": "application/json",
+        }
+        if self._region:
+            headers["Ocp-Apim-Subscription-Region"] = self._region
+
+        async with httpx.AsyncClient() as http:
+            resp = await http.post(url, headers=headers, json=[{"text": sample}])
+            resp.raise_for_status()
+            detections = resp.json()
+
+        detection = detections[0] if detections else {}
+        code = detection.get("language", "en")
+
+        # Map common codes to names.
+        _names = {"en": "English", "fr": "French", "de": "German", "es": "Spanish",
+                   "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "ru": "Russian",
+                   "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "ar": "Arabic"}
 
         return DetectLanguageOutput(
-            language_code=detection.get("language", "en"),
-            language_name=detection.get("language", "English"),
+            language_code=code,
+            language_name=_names.get(code, code),
             confidence=float(detection.get("score", 1.0)),
         )
 
@@ -61,27 +82,26 @@ class TranslatorAdapter:
         client: Any | None = None,
     ) -> TranslateTextOutput:
         """Translate text to English using Azure Translator."""
-        if client is None:
-            client = self._build_client()
+        import httpx
 
         logger.info("Translating from %s to en", input_data.source_language)
 
-        response = await client.translate(
-            input_data.text,
-            to_language="en",
-            from_language=input_data.source_language,
-        )
-        translated = response[0]["translations"][0]["text"] if response else input_data.text
+        url = f"{self._endpoint.rstrip('/')}/translate?api-version=3.0&from={input_data.source_language}&to=en"
+        headers = {
+            "Ocp-Apim-Subscription-Key": self._key,
+            "Content-Type": "application/json",
+        }
+        if self._region:
+            headers["Ocp-Apim-Subscription-Region"] = self._region
+
+        async with httpx.AsyncClient() as http:
+            resp = await http.post(url, headers=headers, json=[{"text": input_data.text}])
+            resp.raise_for_status()
+            translations = resp.json()
+
+        translated = translations[0]["translations"][0]["text"] if translations else input_data.text
 
         return TranslateTextOutput(
             translated_text=translated,
             source_language=input_data.source_language,
-        )
-
-    def _build_client(self) -> Any:
-        # The Translator REST API is used directly via httpx/Azure SDK.
-        # For now, provide a thin wrapper; the exact client pattern depends
-        # on the SDK version resolved at lock time.
-        raise NotImplementedError(
-            "Translator client construction — implement when Azure credentials are available"
         )

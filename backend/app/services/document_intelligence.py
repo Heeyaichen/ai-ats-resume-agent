@@ -47,7 +47,7 @@ class DocumentIntelligenceAdapter:
 
         poller = await client.begin_analyze_document(
             "prebuilt-read",
-            analyze_request=blob_bytes,
+            blob_bytes,
             content_type="application/octet-stream",
         )
         result = await poller.result()
@@ -61,7 +61,7 @@ class DocumentIntelligenceAdapter:
         )
 
     def _build_client(self) -> Any:
-        from azure.ai.documentintelligence import DocumentIntelligenceClient
+        from azure.ai.documentintelligence.aio import DocumentIntelligenceClient
         from azure.core.credentials import AzureKeyCredential
 
         return DocumentIntelligenceClient(

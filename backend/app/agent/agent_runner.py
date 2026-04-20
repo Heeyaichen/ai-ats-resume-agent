@@ -117,8 +117,17 @@ class AgentRunner:
         self._policy = policy
         self._executor = executor
         self._max_iterations = settings.agent_max_iterations
-        self._openai_client = openai_client
         self._tool_schemas = get_tool_schemas()
+
+        if openai_client is not None:
+            self._openai_client = openai_client
+        else:
+            from backend.app.services.openai_adapter import build_async_openai_client
+            self._openai_client = build_async_openai_client(
+                endpoint=settings.azure_openai_endpoint,
+                api_key=settings.azure_openai_key,
+                api_version=settings.openai_api_version,
+            )
 
     async def run(
         self,
@@ -284,11 +293,7 @@ class AgentRunner:
 
     async def _call_model(self, memory: AgentMemory) -> Any:
         """Make a non-streaming chat completion call."""
-        client = self._openai_client
-        if client is None:
-            raise RuntimeError("OpenAI client not configured for agent runner")
-
-        return await client.chat.completions.create(
+        return await self._openai_client.chat.completions.create(
             model=self._settings.chat_model_deployment_name,
             messages=memory.messages,
             tools=self._tool_schemas,

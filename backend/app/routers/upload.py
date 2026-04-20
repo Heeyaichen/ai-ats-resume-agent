@@ -77,8 +77,8 @@ async def upload(
         uploaded_by="anonymous",  # Will be replaced with Entra ID claims in Phase 8.
     )
 
-    # ── Persist via adapters (in-memory store for now) ───────────
-    # Phase 6 will wire real Cosmos + Blob Storage.
+    # ── Persist via adapters ───────────────────────────────────
+    # Always store in memory as fallback for score lookup.
     job_store: dict = request.app.state.job_store
     job_store[job_id] = job
 
@@ -96,5 +96,10 @@ async def upload(
                 "uploaded_by": "anonymous",
             },
         )
+
+    # Persist job to Cosmos DB if adapter is available.
+    cosmos_adapter = getattr(request.app.state, "cosmos_adapter", None)
+    if cosmos_adapter is not None:
+        await cosmos_adapter.upsert_job(job)
 
     return UploadResponse(job_id=job_id, status=JobStatus.QUEUED)

@@ -39,7 +39,7 @@ class LanguageAdapter:
         logger.info("Running PII recognition")
 
         response = await client.recognize_pii_entities(
-            input_data.text,
+            [input_data.text],
             language="en",
         )
 
@@ -47,13 +47,14 @@ class LanguageAdapter:
         sanitized_text = input_data.text
         pii_detected = False
 
-        if hasattr(response, "entities") and response.entities:
+        # Response is a list of results — take the first one.
+        result = response[0] if response else None
+        if result is not None and hasattr(result, "entities") and result.entities:
             pii_detected = True
-            for entity in response.entities:
+            for entity in result.entities:
                 pii_categories.append(entity.category)
-            # Redaction: the SDK can return redacted text
-            if hasattr(response, "redacted_text"):
-                sanitized_text = response.redacted_text
+            if hasattr(result, "redacted_text"):
+                sanitized_text = result.redacted_text
 
         return CheckPIIAndSafetyOutput(
             sanitized_text=sanitized_text,
@@ -64,7 +65,7 @@ class LanguageAdapter:
         )
 
     def _build_client(self) -> Any:
-        from azure.ai.textanalytics import TextAnalyticsClient
+        from azure.ai.textanalytics.aio import TextAnalyticsClient
         from azure.core.credentials import AzureKeyCredential
 
         return TextAnalyticsClient(

@@ -624,3 +624,66 @@ class TestAgentRunner:
         complete_events = [e for e in events if e.get("event_type") == "complete"]
         assert len(complete_events) == 1
         assert complete_events[0]["job_id"] == memory.job_id
+
+    def test_lazy_client_from_settings(self, settings: Settings) -> None:
+        """AgentRunner builds AsyncAzureOpenAI from settings when no client injected."""
+        from unittest.mock import patch
+
+        mock_client = MagicMock()
+        with patch(
+            "backend.app.services.openai_adapter.build_async_openai_client",
+            return_value=mock_client,
+        ) as mock_build:
+            policy = AgentPolicy(settings)
+            executor = ToolExecutor(settings, policy)
+            runner = AgentRunner(settings, policy, executor)
+
+            mock_build.assert_called_once_with(
+                endpoint=settings.azure_openai_endpoint,
+                api_key=settings.azure_openai_key,
+                api_version=settings.openai_api_version,
+            )
+            assert runner._openai_client is mock_client
+
+    def test_injected_client_used_directly(self, settings: Settings) -> None:
+        """AgentRunner uses the injected client without calling build."""
+        from unittest.mock import patch
+
+        mock_client = AsyncMock()
+        with patch(
+            "backend.app.services.openai_adapter.build_async_openai_client",
+        ) as mock_build:
+            policy = AgentPolicy(settings)
+            executor = ToolExecutor(settings, policy)
+            runner = AgentRunner(settings, policy, executor, openai_client=mock_client)
+
+            mock_build.assert_not_called()
+            assert runner._openai_client is mock_client
+
+    @pytest.mark.asyncio
+    async def test_run_without_injected_client(
+        self, settings: Settings, memory: AgentMemory,
+    ) -> None:
+        """AgentRunner works end-to-end when client is built from settings."""
+        from unittest.mock import patch
+
+        mock_client = AsyncMock()
+
+        async def immediate_stop(messages, **kwargs):
+            return self._make_mock_model_response(
+                content="Done", finish_reason="stop",
+            )
+
+        mock_client.chat.completions.create = immediate_stop
+
+        with patch(
+            "backend.app.services.openai_adapter.build_async_openai_client",
+            return_value=mock_client,
+        ):
+            policy = AgentPolicy(settings)
+            executor = ToolExecutor(settings, policy)
+            runner = AgentRunner(settings, policy, executor)
+            result = await runner.run(memory)
+
+        assert result.error is None
+        assert result.job_id == memory.job_id

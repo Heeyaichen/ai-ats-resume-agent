@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -108,53 +108,74 @@ class TestDocumentIntelligenceAdapter:
 class TestTranslatorAdapter:
     @pytest.mark.asyncio
     async def test_detect_language_english(self, settings: Settings) -> None:
-        mock_client = AsyncMock()
-        mock_client.detect.return_value = [
-            {"language": "en", "name": "English", "score": 1.0}
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.is_success = True
+        mock_resp.json.return_value = [
+            {"language": "en", "score": 1.0}
         ]
 
+        mock_http = AsyncMock()
+        mock_http.post.return_value = mock_resp
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
+
         adapter = TranslatorAdapter(settings)
-        output = await adapter.detect_language(
-            DetectLanguageInput(text="Hello, I am a software engineer."),
-            client=mock_client,
-        )
+        with patch("httpx.AsyncClient", return_value=mock_http):
+            output = await adapter.detect_language(
+                DetectLanguageInput(text="Hello, I am a software engineer."),
+            )
 
         assert isinstance(output, DetectLanguageOutput)
         assert output.language_code == "en"
         assert output.confidence == 1.0
         # Verify 500-char limit applied
-        call_args = mock_client.detect.call_args[0][0]
-        assert len(call_args) <= 500
+        call_body = mock_http.post.call_args[1]["json"]
+        assert len(call_body[0]["text"]) <= 500
 
     @pytest.mark.asyncio
     async def test_detect_language_truncates_long_text(self, settings: Settings) -> None:
-        mock_client = AsyncMock()
-        mock_client.detect.return_value = [
-            {"language": "fr", "name": "French", "score": 0.95}
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.is_success = True
+        mock_resp.json.return_value = [
+            {"language": "fr", "score": 0.95}
         ]
+
+        mock_http = AsyncMock()
+        mock_http.post.return_value = mock_resp
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
 
         adapter = TranslatorAdapter(settings)
         long_text = "x" * 1000
-        await adapter.detect_language(
-            DetectLanguageInput(text=long_text),
-            client=mock_client,
-        )
+        with patch("httpx.AsyncClient", return_value=mock_http):
+            await adapter.detect_language(
+                DetectLanguageInput(text=long_text),
+            )
 
-        call_args = mock_client.detect.call_args[0][0]
-        assert len(call_args) == 500
+        call_body = mock_http.post.call_args[1]["json"]
+        assert len(call_body[0]["text"]) == 500
 
     @pytest.mark.asyncio
     async def test_translate_text(self, settings: Settings) -> None:
-        mock_client = AsyncMock()
-        mock_client.translate.return_value = [
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.is_success = True
+        mock_resp.json.return_value = [
             {"translations": [{"text": "Hello world", "to": "en"}]}
         ]
 
+        mock_http = AsyncMock()
+        mock_http.post.return_value = mock_resp
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
+
         adapter = TranslatorAdapter(settings)
-        output = await adapter.translate_text(
-            TranslateTextInput(text="Bonjour le monde", source_language="fr"),
-            client=mock_client,
-        )
+        with patch("httpx.AsyncClient", return_value=mock_http):
+            output = await adapter.translate_text(
+                TranslateTextInput(text="Bonjour le monde", source_language="fr"),
+            )
 
         assert isinstance(output, TranslateTextOutput)
         assert output.translated_text == "Hello world"
@@ -169,12 +190,12 @@ class TestLanguageAdapter:
     async def test_pii_detected(self, settings: Settings) -> None:
         entity = MagicMock()
         entity.category = "Person"
-        mock_response = MagicMock()
-        mock_response.entities = [entity]
-        mock_response.redacted_text = "Hello [REDACTED]"
+        mock_result = MagicMock()
+        mock_result.entities = [entity]
+        mock_result.redacted_text = "Hello [REDACTED]"
 
         mock_client = AsyncMock()
-        mock_client.recognize_pii_entities.return_value = mock_response
+        mock_client.recognize_pii_entities.return_value = [mock_result]
 
         adapter = LanguageAdapter(settings)
         output = await adapter.recognize_pii(
@@ -190,11 +211,11 @@ class TestLanguageAdapter:
 
     @pytest.mark.asyncio
     async def test_no_pii(self, settings: Settings) -> None:
-        mock_response = MagicMock()
-        mock_response.entities = []
+        mock_result = MagicMock()
+        mock_result.entities = []
 
         mock_client = AsyncMock()
-        mock_client.recognize_pii_entities.return_value = mock_response
+        mock_client.recognize_pii_entities.return_value = [mock_result]
 
         adapter = LanguageAdapter(settings)
         output = await adapter.recognize_pii(
@@ -215,7 +236,7 @@ class TestContentSafetyAdapter:
         mock_response = MagicMock()
         mock_response.categories_analysis = []
 
-        mock_client = AsyncMock()
+        mock_client = MagicMock()
         mock_client.analyze_text.return_value = mock_response
 
         adapter = ContentSafetyAdapter(settings)
@@ -232,7 +253,7 @@ class TestContentSafetyAdapter:
         mock_response = MagicMock()
         mock_response.categories_analysis = [analysis]
 
-        mock_client = AsyncMock()
+        mock_client = MagicMock()
         mock_client.analyze_text.return_value = mock_response
 
         adapter = ContentSafetyAdapter(settings)
@@ -251,18 +272,18 @@ class TestPIISafetyService:
         # PII mock
         entity = MagicMock()
         entity.category = "EmailAddress"
-        pii_response = MagicMock()
-        pii_response.entities = [entity]
-        pii_response.redacted_text = "Contact: [REDACTED]"
+        pii_result = MagicMock()
+        pii_result.entities = [entity]
+        pii_result.redacted_text = "Contact: [REDACTED]"
 
         mock_lang_client = AsyncMock()
-        mock_lang_client.recognize_pii_entities.return_value = pii_response
+        mock_lang_client.recognize_pii_entities.return_value = [pii_result]
 
-        # Safety mock (safe)
+        # Safety mock (safe) — sync client, use MagicMock
         safety_response = MagicMock()
         safety_response.categories_analysis = []
 
-        mock_safety_client = AsyncMock()
+        mock_safety_client = MagicMock()
         mock_safety_client.analyze_text.return_value = safety_response
 
         service = PIISafetyService(settings)

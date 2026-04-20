@@ -37,6 +37,10 @@ def main() -> None:
         settings.servicebus_queue_name,
     )
 
+    # Wire SSE registry with Redis pub/sub for cross-process delivery.
+    from backend.app.routers.score import SSERegistry
+    sse_registry = SSERegistry(redis_url=settings.redis_url)
+
     asyncio.run(
         run_worker(
             settings,
@@ -44,7 +48,7 @@ def main() -> None:
             score_store={},
             trace_store={},
             review_store={},
-            sse_registry=None,
+            sse_registry=sse_registry,
         )
     )
 

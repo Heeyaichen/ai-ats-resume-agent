@@ -37,11 +37,12 @@ class BlobStorageAdapter:
         blob_path = f"resumes-raw/{job_id}/{safe_filename}"
         container = await self._get_container("resumes-raw", client)
 
+        from azure.storage.blob import ContentSettings
         await container.upload_blob(
             name=f"{job_id}/{safe_filename}",
             data=data,
             overwrite=True,
-            content_settings={"content_type": content_type},
+            content_settings=ContentSettings(content_type=content_type),
             metadata=metadata,
         )
         logger.info("Uploaded resume to %s", blob_path)
@@ -78,11 +79,12 @@ class BlobStorageAdapter:
         blob_path = f"reports/{job_id}/report.json"
         container = await self._get_container("reports", client)
 
+        from azure.storage.blob import ContentSettings
         await container.upload_blob(
             name=f"{job_id}/report.json",
             data=report_json.encode("utf-8"),
             overwrite=True,
-            content_settings={"content_type": "application/json"},
+            content_settings=ContentSettings(content_type="application/json"),
         )
         logger.info("Uploaded report to %s", blob_path)
         return blob_path

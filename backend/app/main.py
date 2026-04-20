@@ -54,13 +54,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # ── App state ──────────────────────────────────────────────
     app.state.settings = settings
-    # In-memory stores for Phase 5. Phase 6 will wire Cosmos/Blob.
+    # In-memory fallback stores (used when adapters are unavailable).
     app.state.job_store: dict = {}
     app.state.score_store: dict = {}
-    app.state.sse_registry = SSERegistry()
-    # Optional adapters — set by tests or Phase 6 worker wiring.
-    app.state.blob_adapter = None
-    app.state.cosmos_adapter = None
+    # SSE registry with Redis pub/sub for cross-process delivery.
+    app.state.sse_registry = SSERegistry(redis_url=settings.redis_url)
+
+    # ── Wire real Azure adapters ───────────────────────────────
+    blob_adapter = None
+    cosmos_adapter = None
+
+    if settings.storage_connection_string:
+        from backend.app.services.blob_storage import BlobStorageAdapter
+        blob_adapter = BlobStorageAdapter(settings)
+
+    if settings.cosmos_endpoint and settings.cosmos_key:
+        from backend.app.services.cosmos import CosmosAdapter
+        cosmos_adapter = CosmosAdapter(settings)
+
+    app.state.blob_adapter = blob_adapter
+    app.state.cosmos_adapter = cosmos_adapter
 
     # ── Routers ────────────────────────────────────────────────
     app.include_router(health_router)

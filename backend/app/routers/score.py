@@ -5,7 +5,7 @@ Design spec Section 5.1:
 - GET /api/score/{job_id}/stream: SSE event stream.
 
 Design spec Section 5.2:
-- Valid SSE framing: data: {json}\\n\\n
+- Valid SSE framing: data: {json}\n\n
 - Events: tool_call, tool_result, complete, error
 - 5-minute inactivity timeout
 """
@@ -26,41 +26,87 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# In-memory SSE event queues: job_id -> asyncio.Queue
-# Production will use Redis pub/sub or similar for cross-replica support.
-_sse_queues: dict[str, list[asyncio.Queue[str]]] = {}
-
 SSE_TIMEOUT_SECONDS = 300  # 5-minute inactivity timeout per spec.
+
+# Redis channel prefix for SSE events.
+_SSE_CHANNEL_PREFIX = "sse:"
 
 
 class SSERegistry:
-    """Manages SSE event queues for streaming agent progress to clients."""
+    """Manages SSE event delivery using Redis pub/sub for cross-process support.
 
-    @staticmethod
-    def register(job_id: str) -> asyncio.Queue[str]:
-        """Create and register a new SSE queue for a job."""
+    Falls back to in-process asyncio queues when redis_url is not configured.
+    """
+
+    def __init__(self, redis_url: str | None = None) -> None:
+        self._redis_url = redis_url
+        self._redis: Any | None = None
+        # In-process fallback.
+        self._local_queues: dict[str, list[asyncio.Queue[str]]] = {}
+
+    async def _get_redis(self) -> Any:
+        if self._redis is None and self._redis_url:
+            import redis.asyncio as aioredis
+
+            self._redis = aioredis.from_url(self._redis_url)
+        return self._redis
+
+    async def emit(self, job_id: str, event: dict[str, Any]) -> None:
+        """Push an event to the Redis channel and local queues."""
+        payload = json.dumps(event, default=str)
+        # Deliver to local in-process queues.
+        for q in self._local_queues.get(job_id, []):
+            await q.put(payload)
+        # Publish to Redis for cross-process delivery.
+        try:
+            r = await self._get_redis()
+            if r is not None:
+                await r.publish(f"{_SSE_CHANNEL_PREFIX}{job_id}", payload)
+        except Exception:
+            logger.warning(
+                "Failed to publish SSE event to Redis for job %s",
+                job_id, exc_info=True,
+            )
+
+    def register(self, job_id: str) -> asyncio.Queue[str]:
+        """Create and register a new local SSE queue for a job."""
         q: asyncio.Queue[str] = asyncio.Queue()
-        if job_id not in _sse_queues:
-            _sse_queues[job_id] = []
-        _sse_queues[job_id].append(q)
+        if job_id not in self._local_queues:
+            self._local_queues[job_id] = []
+        self._local_queues[job_id].append(q)
         return q
 
-    @staticmethod
-    async def emit(job_id: str, event: dict[str, Any]) -> None:
-        """Push an event dict to all registered queues for a job."""
-        payload = json.dumps(event, default=str)
-        queues = _sse_queues.get(job_id, [])
-        for q in queues:
-            await q.put(payload)
-
-    @staticmethod
-    def unregister(job_id: str, queue: asyncio.Queue[str]) -> None:
+    def unregister(self, job_id: str, queue: asyncio.Queue[str]) -> None:
         """Remove a queue when the client disconnects."""
-        queues = _sse_queues.get(job_id, [])
+        queues = self._local_queues.get(job_id, [])
         if queue in queues:
             queues.remove(queue)
         if not queues:
-            _sse_queues.pop(job_id, None)
+            self._local_queues.pop(job_id, None)
+
+    async def subscribe(
+        self, job_id: str, queue: asyncio.Queue[str],
+    ) -> tuple[Any, asyncio.Task] | None:
+        """Subscribe to Redis channel and forward events to the queue.
+
+        Returns (pubsub, forward_task) or None if Redis is unavailable.
+        """
+        r = await self._get_redis()
+        if r is None:
+            return None
+        pubsub = r.pubsub()
+        await pubsub.subscribe(f"{_SSE_CHANNEL_PREFIX}{job_id}")
+
+        async def _forward() -> None:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = message["data"]
+                    await queue.put(
+                        data.decode() if isinstance(data, bytes) else data,
+                    )
+
+        task = asyncio.create_task(_forward())
+        return pubsub, task
 
 
 def get_sse_registry(request: Request) -> SSERegistry:
@@ -74,22 +120,51 @@ async def get_score(job_id: str, request: Request) -> dict[str, Any]:
 
     Design spec: 200 when job exists, 404 when not found.
     """
+    cosmos = getattr(request.app.state, "cosmos_adapter", None)
+
+    if cosmos is not None:
+        job = await cosmos.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Job not found.")
+        response: dict[str, Any] = {
+            "job_id": job.id,
+            "status": job.status.value,
+        }
+        # Try in-memory score first, then Cosmos.
+        score = getattr(request.app.state, "score_store", {}).get(job_id)
+        if score is None:
+            try:
+                container = await cosmos._get_container("scores")
+                import uuid as _uuid
+                # Query scores by job_id (partition key).
+                items = container.query_items(
+                    query="SELECT * FROM c WHERE c.job_id = @jid",
+                    parameters=[{"name": "@jid", "value": job_id}],
+                    partition_key=job_id,
+                )
+                async for item in items:
+                    score = {k: v for k, v in item.items() if not k.startswith("_")}
+                    break
+            except Exception:
+                pass
+        if score is not None:
+            response["score"] = score
+        return response
+
+    # Fallback: in-memory store.
     job_store: dict[str, JobRecord] = request.app.state.job_store
     job = job_store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    response: dict[str, Any] = {
+    response = {
         "job_id": job.id,
         "status": job.status.value,
     }
-
-    # Attach score if available.
     score_store: dict = request.app.state.score_store
     score = score_store.get(job_id)
     if score is not None:
         response["score"] = score
-
     return response
 
 
@@ -99,13 +174,33 @@ async def score_stream(job_id: str, request: Request) -> StreamingResponse:
 
     Design spec: valid SSE framing, 5-minute inactivity timeout.
     """
+    cosmos = getattr(request.app.state, "cosmos_adapter", None)
+
     # Verify job exists.
-    job_store: dict[str, JobRecord] = request.app.state.job_store
-    if job_id not in job_store:
-        raise HTTPException(status_code=404, detail="Job not found.")
+    if cosmos is not None:
+        job = await cosmos.get_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Job not found.")
+    else:
+        job_store: dict[str, JobRecord] = request.app.state.job_store
+        if job_id not in job_store:
+            raise HTTPException(status_code=404, detail="Job not found.")
 
     registry = get_sse_registry(request)
     queue = registry.register(job_id)
+
+    # Subscribe to Redis pub/sub for cross-process events.
+    sub_result = await registry.subscribe(job_id, queue)
+    pubsub_cleanup = None
+    if sub_result is not None:
+        pubsub, forward_task = sub_result
+
+        async def _cleanup() -> None:
+            forward_task.cancel()
+            await pubsub.unsubscribe(f"{_SSE_CHANNEL_PREFIX}{job_id}")
+            await pubsub.close()
+
+        pubsub_cleanup = _cleanup
 
     async def event_generator() -> Any:
         """Yield SSE events until complete/error/timeout/disconnect."""
@@ -127,6 +222,11 @@ async def score_stream(job_id: str, request: Request) -> StreamingResponse:
                     break
         finally:
             registry.unregister(job_id, queue)
+            if pubsub_cleanup is not None:
+                try:
+                    await pubsub_cleanup()
+                except Exception:
+                    pass
 
     return StreamingResponse(
         event_generator(),
@@ -134,6 +234,6 @@ async def score_stream(job_id: str, request: Request) -> StreamingResponse:
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering.
+            "X-Accel-Buffering": "no",
         },
     )
