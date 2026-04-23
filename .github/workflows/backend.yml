@@ -80,6 +80,7 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.in
+          pip install azure-functions  # Needed for function_trigger tests
 
       - name: pytest
         run: pytest tests/ -v
