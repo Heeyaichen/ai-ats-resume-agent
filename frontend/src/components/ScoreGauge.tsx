@@ -3,10 +3,13 @@
 import React from "react";
 
 interface Props {
-  score: number;
+  score: number | null;
 }
 
 const ScoreGauge: React.FC<Props> = ({ score }) => {
+  if (score === null) {
+    return <span className="text-lg text-gray-400">Score unavailable</span>;
+  }
   const radius = 60;
   const stroke = 8;
   const normalized = Math.max(0, Math.min(100, score));

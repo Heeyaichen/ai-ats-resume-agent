@@ -6,8 +6,10 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target:
+          "https://ats-agent-dev-api.salmonsmoke-fa24b266.swedencentral.azurecontainerapps.io",
         changeOrigin: true,
+        secure: true,
       },
     },
   },

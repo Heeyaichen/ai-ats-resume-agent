@@ -7,8 +7,8 @@ interface Props {
     keyword_match: number;
     experience_alignment: number;
     skills_coverage: number;
-  };
-  semanticSimilarity: number;
+  } | null;
+  semanticSimilarity: number | null;
 }
 
 const Bar: React.FC<{ label: string; value: number; max: number; color: string }> = ({
@@ -36,23 +36,34 @@ const Bar: React.FC<{ label: string; value: number; max: number; color: string }
   );
 };
 
-const ScoreBreakdown: React.FC<Props> = ({ breakdown, semanticSimilarity }) => (
-  <div className="space-y-3">
-    <Bar label="Keyword Match" value={breakdown.keyword_match} max={40} color="bg-blue-500" />
-    <Bar
-      label="Experience Alignment"
-      value={breakdown.experience_alignment}
-      max={30}
-      color="bg-purple-500"
-    />
-    <Bar label="Skills Coverage" value={breakdown.skills_coverage} max={30} color="bg-teal-500" />
-    <Bar
-      label="Semantic Similarity"
-      value={Math.round(semanticSimilarity * 100)}
-      max={100}
-      color="bg-indigo-500"
-    />
-  </div>
-);
+const ScoreBreakdown: React.FC<Props> = ({ breakdown, semanticSimilarity }) => {
+  if (!breakdown && semanticSimilarity === null) {
+    return <span className="text-sm text-gray-400">Breakdown unavailable</span>;
+  }
+  return (
+    <div className="space-y-3">
+      {breakdown && (
+        <>
+          <Bar label="Keyword Match" value={breakdown.keyword_match} max={40} color="bg-blue-500" />
+          <Bar
+            label="Experience Alignment"
+            value={breakdown.experience_alignment}
+            max={30}
+            color="bg-purple-500"
+          />
+          <Bar label="Skills Coverage" value={breakdown.skills_coverage} max={30} color="bg-teal-500" />
+        </>
+      )}
+      {semanticSimilarity !== null && (
+        <Bar
+          label="Semantic Similarity"
+          value={Math.round(semanticSimilarity * 100)}
+          max={100}
+          color="bg-indigo-500"
+        />
+      )}
+    </div>
+  );
+};
 
 export default ScoreBreakdown;

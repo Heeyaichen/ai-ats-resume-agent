@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "./authConfig";
-import { setAuthToken, uploadResume, fetchScore } from "./api";
+import { setAuthToken, uploadResume } from "./api";
 import { useSSEStream } from "./useSSEStream";
 import {
   JobState,
@@ -27,6 +27,8 @@ const Home: React.FC = () => {
   const account = accounts[0];
 
   // ── Auth ──────────────────────────────────────────────────────
+  const isAuthConfigured = !!import.meta.env.VITE_AZURE_CLIENT_ID;
+  const isLocalDev = import.meta.env.DEV;
   const handleLogin = useCallback(async () => {
     const resp = await instance.loginPopup(loginRequest);
     setAuthToken(resp.accessToken);
@@ -48,24 +50,14 @@ const Home: React.FC = () => {
   const handleSSEEvent = useCallback(
     (evt: SSEEvent) => {
       if (evt.event_type === "complete") {
-        // Fetch the final score from the API.
-        if (jobId) {
-          fetchScore(jobId)
-            .then((payload) => {
-              if (payload.score_data) {
-                setScoreData(payload.score_data);
-              }
-            })
-            .catch(() => {
-              // Score fetch failure is non-critical here.
-            });
-        }
+        // The complete event carries the full result directly.
+        setScoreData(evt.result);
       } else if (evt.event_type === "error") {
         setErrorMsg(evt.message);
         setJobState("error");
       }
     },
-    [jobId],
+    [],
   );
 
   const { events: sseEvents } = useSSEStream(
@@ -104,9 +96,11 @@ const Home: React.FC = () => {
     setScoreData(null);
 
     try {
-      // Ensure we have a fresh token.
-      const resp = await instance.acquireTokenSilent(loginRequest);
-      setAuthToken(resp.accessToken);
+      // Acquire token only when auth is configured (not local dev bypass).
+      if (isAuthConfigured && account) {
+        const resp = await instance.acquireTokenSilent(loginRequest);
+        setAuthToken(resp.accessToken);
+      }
 
       const result: UploadResponse = await uploadResume(file, jd);
       setJobId(result.job_id);
@@ -128,7 +122,16 @@ const Home: React.FC = () => {
   };
 
   // ── Render ────────────────────────────────────────────────────
-  if (!account) {
+  // Auth gating: fail closed in deployed environments without auth config.
+  if (!isAuthConfigured && !isLocalDev) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-red-600">
+        Authentication is not configured. Contact your administrator.
+      </div>
+    );
+  }
+
+  if (isAuthConfigured && !account) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <button

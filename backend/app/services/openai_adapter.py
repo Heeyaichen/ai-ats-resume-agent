@@ -98,9 +98,19 @@ class OpenAIAdapter:
         raw = response.choices[0].message.content
         parsed = json.loads(raw)
 
+        # Handle both nested {"breakdown": {...}} and flat layout.
+        if "breakdown" in parsed and isinstance(parsed["breakdown"], dict):
+            bd = parsed["breakdown"]
+        else:
+            bd = {
+                "keyword_match": parsed.get("keyword_match", 0),
+                "experience_alignment": parsed.get("experience_alignment", 0),
+                "skills_coverage": parsed.get("skills_coverage", 0),
+            }
+
         return ScoreResumeOutput(
             score=parsed["score"],
-            breakdown=ScoreResumeBreakdown(**parsed["breakdown"]),
+            breakdown=ScoreResumeBreakdown(**bd),
             matched_keywords=parsed.get("matched_keywords", []),
             missing_keywords=parsed.get("missing_keywords", []),
             confidence=parsed.get("confidence", 0.5),

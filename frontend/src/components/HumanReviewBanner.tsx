@@ -4,7 +4,7 @@ import React from "react";
 import { ShieldAlert } from "lucide-react";
 
 interface Props {
-  reason: string;
+  reason: string | null;
 }
 
 const HumanReviewBanner: React.FC<Props> = ({ reason }) => (

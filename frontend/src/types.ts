@@ -32,18 +32,18 @@ export interface ScorePayload {
 }
 
 export interface ScoreData {
-  score: number;
+  score: number | null;
   breakdown: {
     keyword_match: number;
     experience_alignment: number;
     skills_coverage: number;
-  };
+  } | null;
   matched_keywords: string[];
   missing_keywords: string[];
-  semantic_similarity: number;
-  fit_summary: string;
+  semantic_similarity: number | null;
+  fit_summary: string | null;
   human_review_required: boolean;
-  human_review_reason: string;
+  human_review_reason: string | null;
   similar_candidates: SimilarCandidate[];
 }
 
@@ -84,7 +84,7 @@ export interface ToolResultEvent {
 export interface CompleteEvent {
   event_type: "complete";
   job_id: string;
-  result: Record<string, unknown>;
+  result: ScoreData;
   timestamp: string;
 }
 
