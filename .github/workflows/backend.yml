@@ -40,6 +40,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.in
           pip install mypy ruff
+          pip install azure-functions  # Needed for function_trigger tests
 
       - name: ruff check
         run: ruff check app/ tests/
