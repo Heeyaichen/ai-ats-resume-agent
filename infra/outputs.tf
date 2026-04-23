@@ -12,7 +12,7 @@ output "static_web_app_url" {
 }
 
 output "apim_gateway_url" {
-  description = "API Management gateway URL."
+  description = "API Management gateway URL (empty if APIM is disabled)."
   value       = module.compute.apim_gateway_url
 }
 

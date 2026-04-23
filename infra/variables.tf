@@ -143,6 +143,12 @@ variable "enable_frontdoor" {
   default     = false
 }
 
+variable "enable_apim" {
+  description = "Enable Azure API Management. Disable on subscriptions that block APIM creation (e.g. free trial)."
+  type        = bool
+  default     = true
+}
+
 variable "apim_sku" {
   type    = string
   default = "Developer_1"
@@ -151,6 +157,32 @@ variable "apim_sku" {
 variable "apim_publisher_email" {
   type    = string
   default = "admin@example.com"
+}
+
+# ── Shared resource references (for subscription-limited resources) ──
+
+variable "use_existing_openai" {
+  description = "Reference an existing OpenAI account instead of creating one. Useful when subscription quota is exhausted."
+  type        = bool
+  default     = false
+}
+
+variable "existing_openai_name" {
+  description = "Name of an existing OpenAI cognitive account (when use_existing_openai=true)."
+  type        = string
+  default     = ""
+}
+
+variable "existing_openai_resource_group" {
+  description = "Resource group of the existing OpenAI account (when use_existing_openai=true)."
+  type        = string
+  default     = ""
+}
+
+variable "existing_cae_id" {
+  description = "ID of an existing Container Apps Environment to share. Leave empty to create a new one."
+  type        = string
+  default     = ""
 }
 
 # ── Data ───────────────────────────────────────────────────────

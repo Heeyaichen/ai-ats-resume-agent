@@ -94,6 +94,11 @@ variable "enable_frontdoor" {
   description = "Enable Azure Front Door edge delivery. Disable on subscriptions that do not support Front Door."
   default     = false
 }
+variable "enable_apim" {
+  type        = bool
+  description = "Enable Azure API Management. Disable on subscriptions that block APIM creation."
+  default     = true
+}
 variable "apim_sku" {
   type    = string
   default = "Developer_1"
@@ -101,4 +106,9 @@ variable "apim_sku" {
 variable "apim_publisher_email" {
   type    = string
   default = "admin@example.com"
+}
+variable "existing_cae_id" {
+  type        = string
+  description = "ID of an existing Container Apps Environment to use instead of creating one."
+  default     = ""
 }

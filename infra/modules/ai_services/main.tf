@@ -6,7 +6,14 @@
 
 # ── Azure OpenAI ───────────────────────────────────────────────
 
+data "azurerm_cognitive_account" "existing_openai" {
+  count               = var.use_existing_openai ? 1 : 0
+  name                = var.existing_openai_name
+  resource_group_name = var.existing_openai_resource_group
+}
+
 resource "azurerm_cognitive_account" "openai" {
+  count                         = var.use_existing_openai ? 0 : 1
   name                          = "${var.project_name}-${var.environment}-openai"
   resource_group_name           = var.resource_group_name
   location                      = var.location
@@ -17,9 +24,14 @@ resource "azurerm_cognitive_account" "openai" {
   tags                          = var.tags
 }
 
+locals {
+  openai_account = var.use_existing_openai ? data.azurerm_cognitive_account.existing_openai[0] : azurerm_cognitive_account.openai[0]
+}
+
 resource "azurerm_cognitive_deployment" "gpt4o" {
+  count                = var.use_existing_openai ? 0 : 1
   name                 = var.openai_chat_model_name
-  cognitive_account_id = azurerm_cognitive_account.openai.id
+  cognitive_account_id = local.openai_account.id
   model {
     format  = "OpenAI"
     name    = var.openai_chat_model_name
@@ -32,8 +44,9 @@ resource "azurerm_cognitive_deployment" "gpt4o" {
 }
 
 resource "azurerm_cognitive_deployment" "embedding" {
+  count                = var.use_existing_openai ? 0 : 1
   name                 = var.openai_embedding_model_name
-  cognitive_account_id = azurerm_cognitive_account.openai.id
+  cognitive_account_id = local.openai_account.id
   model {
     format  = "OpenAI"
     name    = var.openai_embedding_model_name

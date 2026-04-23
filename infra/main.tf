@@ -41,6 +41,11 @@ module "ai_services" {
   translator_sku                 = var.translator_sku
   language_sku                   = var.language_sku
   content_safety_sku             = var.content_safety_sku
+
+  # Share existing OpenAI account when subscription quota is exhausted.
+  use_existing_openai           = var.use_existing_openai
+  existing_openai_name          = var.existing_openai_name
+  existing_openai_resource_group = var.existing_openai_resource_group
 }
 
 # ── Data ───────────────────────────────────────────────────────
@@ -108,8 +113,12 @@ module "compute" {
   static_web_app_location = var.static_web_app_location
   frontdoor_sku           = var.frontdoor_sku
   enable_frontdoor        = var.enable_frontdoor
+  enable_apim             = var.enable_apim
   apim_sku                = var.apim_sku
   apim_publisher_email    = var.apim_publisher_email
+
+  # Share existing Container Apps Environment when subscription quota is exhausted.
+  existing_cae_id = var.existing_cae_id
 }
 
 # ── Observability ──────────────────────────────────────────────

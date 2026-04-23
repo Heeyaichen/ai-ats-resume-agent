@@ -34,10 +34,15 @@ resource "azurerm_container_registry" "this" {
 # ── Container Apps Environment ─────────────────────────────────
 
 resource "azurerm_container_app_environment" "this" {
+  count               = var.existing_cae_id == "" ? 1 : 0
   name                = "${var.project_name}-${var.environment}-cae"
   resource_group_name = var.resource_group_name
   location            = var.location
   tags                = var.tags
+}
+
+locals {
+  cae_id = var.existing_cae_id != "" ? var.existing_cae_id : azurerm_container_app_environment.this[0].id
 }
 
 # ── FastAPI Container App ──────────────────────────────────────
@@ -45,7 +50,7 @@ resource "azurerm_container_app_environment" "this" {
 resource "azurerm_container_app" "api" {
   name                         = "${var.project_name}-${var.environment}-api"
   resource_group_name          = var.resource_group_name
-  container_app_environment_id = azurerm_container_app_environment.this.id
+  container_app_environment_id = local.cae_id
   revision_mode                = "Single"
   tags                         = var.tags
 
@@ -141,7 +146,7 @@ resource "azurerm_container_app" "api" {
 resource "azurerm_container_app" "worker" {
   name                         = "${var.project_name}-${var.environment}-worker"
   resource_group_name          = var.resource_group_name
-  container_app_environment_id = azurerm_container_app_environment.this.id
+  container_app_environment_id = local.cae_id
   revision_mode                = "Single"
   tags                         = var.tags
 
@@ -362,6 +367,7 @@ resource "azurerm_cdn_frontdoor_route" "this" {
 # ── API Management ─────────────────────────────────────────────
 
 resource "azurerm_api_management" "this" {
+  count               = var.enable_apim ? 1 : 0
   name                = "${var.project_name}-${var.environment}-apim"
   resource_group_name = var.resource_group_name
   location            = var.location

@@ -7,7 +7,7 @@ output "static_web_app_host_name" {
 }
 
 output "apim_gateway_url" {
-  value = azurerm_api_management.this.gateway_url
+  value = var.enable_apim ? azurerm_api_management.this[0].gateway_url : ""
 }
 
 output "acr_login_server" {
@@ -52,7 +52,7 @@ output "frontdoor_endpoint_host_name" {
 }
 
 output "container_app_environment_id" {
-  value = azurerm_container_app_environment.this.id
+  value = local.cae_id
 }
 
 output "static_web_app_name" {

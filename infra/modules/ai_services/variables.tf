@@ -58,3 +58,18 @@ variable "content_safety_sku" {
   type    = string
   default = "S0"
 }
+
+variable "use_existing_openai" {
+  type    = bool
+  default = false
+}
+
+variable "existing_openai_name" {
+  type    = string
+  default = ""
+}
+
+variable "existing_openai_resource_group" {
+  type    = string
+  default = ""
+}
