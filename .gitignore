@@ -7,6 +7,8 @@ build/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
 
 # Node
 node_modules/
@@ -17,6 +19,8 @@ node_modules/
 *.tfstate.*
 *.tfplan
 terraform.tfvars
+# Note: .terraform.lock.hcl is NOT ignored — it should be committed
+# for reproducible provider versions.
 
 # IDE
 .vscode/

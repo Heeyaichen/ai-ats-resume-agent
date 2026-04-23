@@ -25,3 +25,216 @@ variable "tags" {
     cost_center = "engineering"
   }
 }
+
+# ── Storage ────────────────────────────────────────────────────
+
+variable "storage_replication_type" {
+  description = "Storage account replication type."
+  type        = string
+  default     = "LRS"
+}
+
+# ── AI Services ────────────────────────────────────────────────
+
+variable "openai_sku" {
+  type    = string
+  default = "S0"
+}
+
+variable "openai_capacity" {
+  type    = number
+  default = 30
+}
+
+variable "openai_chat_model_name" {
+  type        = string
+  description = "Azure OpenAI chat model name. Must be available in your region."
+  default     = "gpt-4o"
+}
+
+variable "openai_chat_model_version" {
+  type        = string
+  description = "Azure OpenAI chat model version. Must be currently supported."
+  default     = "2025-01-01-preview"
+}
+
+variable "openai_embedding_model_name" {
+  type    = string
+  default = "text-embedding-ada-002"
+}
+
+variable "openai_embedding_model_version" {
+  type    = string
+  default = "2"
+}
+
+variable "doc_intelligence_sku" {
+  type    = string
+  default = "S0"
+}
+
+variable "translator_sku" {
+  type    = string
+  default = "S1"
+}
+
+variable "language_sku" {
+  type    = string
+  default = "S"
+}
+
+variable "content_safety_sku" {
+  type    = string
+  default = "S0"
+}
+
+# ── Compute ────────────────────────────────────────────────────
+
+variable "acr_sku" {
+  type    = string
+  default = "Basic"
+}
+
+variable "api_cpu" {
+  type    = string
+  default = "0.5"
+}
+
+variable "api_memory" {
+  type    = string
+  default = "1.0Gi"
+}
+
+variable "worker_cpu" {
+  type    = string
+  default = "0.5"
+}
+
+variable "worker_memory" {
+  type    = string
+  default = "1.0Gi"
+}
+
+variable "function_sku" {
+  type    = string
+  default = "Y1"
+}
+
+variable "static_web_app_sku" {
+  type    = string
+  default = "Free"
+}
+
+variable "static_web_app_location" {
+  type        = string
+  description = "Location for Static Web App (must be a supported region). swedencentral is not supported."
+  default     = "westeurope"
+}
+
+variable "frontdoor_sku" {
+  description = "Azure Front Door SKU (only used when enable_frontdoor=true)."
+  type        = string
+  default     = "Standard_AzureFrontDoor"
+}
+
+variable "enable_frontdoor" {
+  description = "Enable Azure Front Door. Disable on subscriptions that restrict Front Door."
+  type        = bool
+  default     = false
+}
+
+variable "enable_apim" {
+  description = "Enable Azure API Management. Disable on subscriptions that block APIM creation (e.g. free trial)."
+  type        = bool
+  default     = true
+}
+
+variable "apim_sku" {
+  type    = string
+  default = "Developer_1"
+}
+
+variable "apim_publisher_email" {
+  type    = string
+  default = "admin@example.com"
+}
+
+# ── Shared resource references (for subscription-limited resources) ──
+
+variable "use_existing_openai" {
+  description = "Reference an existing OpenAI account instead of creating one. Useful when subscription quota is exhausted."
+  type        = bool
+  default     = false
+}
+
+variable "existing_openai_name" {
+  description = "Name of an existing OpenAI cognitive account (when use_existing_openai=true)."
+  type        = string
+  default     = ""
+}
+
+variable "existing_openai_resource_group" {
+  description = "Resource group of the existing OpenAI account (when use_existing_openai=true)."
+  type        = string
+  default     = ""
+}
+
+variable "existing_cae_id" {
+  description = "ID of an existing Container Apps Environment to share. Leave empty to create a new one."
+  type        = string
+  default     = ""
+}
+
+# ── Data ───────────────────────────────────────────────────────
+
+variable "cosmos_throughput" {
+  type    = number
+  default = 400
+}
+
+variable "redis_sku" {
+  type    = string
+  default = "Basic"
+}
+
+variable "redis_capacity" {
+  type    = number
+  default = 0
+}
+
+variable "redis_family" {
+  type    = string
+  default = "C"
+}
+
+variable "search_sku" {
+  type    = string
+  default = "basic"
+}
+
+variable "search_replicas" {
+  type    = number
+  default = 1
+}
+
+# ── Networking ─────────────────────────────────────────────────
+
+variable "vnet_address_space" {
+  type    = string
+  default = "10.0.0.0/16"
+}
+
+variable "container_apps_subnet_cidr" {
+  type    = string
+  default = "10.0.0.0/20"
+}
+
+variable "function_app_subnet_cidr" {
+  type    = string
+  default = "10.0.16.0/24"
+}
+
+variable "private_endpoints_subnet_cidr" {
+  type    = string
+  default = "10.0.17.0/24"
+}
