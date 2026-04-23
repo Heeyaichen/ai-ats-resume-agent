@@ -45,6 +45,11 @@ variable "application_insights_connection_string" {
   type      = string
   sensitive = true
 }
+variable "cors_origins" {
+  description = "Comma-separated allowed CORS origins for the API."
+  type        = string
+  default     = "http://localhost:5173"
+}
 
 # ── SKU / sizing ───────────────────────────────────────────────
 variable "acr_sku" {
