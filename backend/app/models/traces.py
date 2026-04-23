@@ -6,7 +6,7 @@ contains_raw_text must always be False.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 

@@ -6,7 +6,7 @@ Score breakdown weights: 40 keyword, 30 experience, 30 skills (Section 4.3).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 

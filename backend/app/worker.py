@@ -16,7 +16,6 @@ Design spec Section 5.3:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
@@ -29,7 +28,6 @@ from backend.app.agent.tool_executor import ToolExecutor
 from backend.app.config import Settings
 from backend.app.models.jobs import JobRecord, JobStatus
 from backend.app.models.reviews import ReviewFlag, ReviewSeverity, ReviewCreator
-from backend.app.models.scores import ScoreRecord, ScoreBreakdown
 from backend.app.models.traces import AgentTraceRecord
 
 logger = logging.getLogger(__name__)
@@ -135,7 +133,7 @@ async def process_message(
             "job_id=%s, blob_path=%s, jd_text_len=%d",
             job_id, blob_path, len(jd_text) if jd_text else 0,
         )
-        raise ValueError(f"Invalid message: missing job_id, blob_path, or jd_text.")
+        raise ValueError("Invalid message: missing job_id, blob_path, or jd_text.")
 
     logger.info("Processing job %s", job_id)
 
@@ -423,7 +421,6 @@ async def run_worker(
 
     # Production mode: connect to Azure Service Bus.
     from azure.servicebus.aio import ServiceBusClient
-    from azure.servicebus import ServiceBusReceivedMessage
 
     conn_str = settings.servicebus_connection_string
     queue_name = settings.servicebus_queue_name
@@ -466,7 +463,7 @@ async def run_worker(
                         reason="Invalid JSON",
                         error_description="Message body is not valid JSON.",
                     )
-                except Exception as exc:
+                except Exception:
                     logger.exception("Unexpected error processing message.")
                     await receiver.abandon_message(msg)
 

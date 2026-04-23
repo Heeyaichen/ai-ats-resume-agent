@@ -20,8 +20,6 @@ from backend.app.models.tools import (
     CheckPIIAndSafetyOutput,
     ScoreResumeInput,
     ScoreResumeOutput,
-    ScoreResumeBreakdown,
-    ComputeSemanticSimilarityInput,
     SearchSimilarCandidatesInput,
     SearchSimilarCandidatesOutput,
     FlagForHumanReviewInput,

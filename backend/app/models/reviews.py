@@ -5,7 +5,7 @@ Design spec Section 7.1: partition key /job_id, TTL 90 days.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field

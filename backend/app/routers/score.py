@@ -135,7 +135,6 @@ async def get_score(job_id: str, request: Request) -> dict[str, Any]:
         if score is None:
             try:
                 container = await cosmos._get_container("scores")
-                import uuid as _uuid
                 # Query scores by job_id (partition key).
                 items = container.query_items(
                     query="SELECT * FROM c WHERE c.job_id = @jid",

@@ -5,7 +5,7 @@ Design spec Section 5.2: every payload includes event_type, job_id, timestamp.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import Any
 

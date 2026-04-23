@@ -28,7 +28,7 @@ class TestLogging:
         captured = capsys  # type: ignore[assignment]
         output = captured.readouterr().out  # type: ignore[attr-defined]
         # At least one JSON line should be emitted.
-        lines = [l for l in output.strip().splitlines() if l.strip()]
+        lines = [line for line in output.strip().splitlines() if line.strip()]
         assert len(lines) >= 1
         parsed = json.loads(lines[-1])
         assert parsed.get("event") == "test message" or parsed.get("message") == "test message"

@@ -16,14 +16,13 @@ Covers design spec Section 13.1 required unit tests:
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from backend.app.agent.agent_memory import AgentMemory
 from backend.app.agent.agent_policy import AgentPolicy
-from backend.app.agent.agent_runner import AgentRunner, AgentResult
+from backend.app.agent.agent_runner import AgentRunner
 from backend.app.agent.tool_executor import ToolExecutor, ToolExecutionError
 from backend.app.agent.tool_registry import (
     CANONICAL_TOOL_NAMES,

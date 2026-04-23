@@ -15,9 +15,8 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -25,7 +24,6 @@ from backend.app.agent.agent_memory import AgentMemory
 from backend.app.agent.agent_runner import AgentResult
 from backend.app.config import Settings
 from backend.app.models.jobs import JobRecord, JobStatus
-from backend.app.models.reviews import ReviewFlag
 from backend.app.routers.score import SSERegistry
 from backend.app.worker import (
     process_message,
@@ -256,7 +254,8 @@ class TestSuccessfulProcessing:
 
         runner = AsyncMock()
         runner.run = mock_run
-        factory = lambda _s: runner
+        def factory(_s: Any) -> AsyncMock:
+            return runner
 
         await process_message(
             _make_message(job_id),
@@ -342,8 +341,6 @@ class TestSSEEvents:
         stores["job_store"][job_id] = job
         registry = SSERegistry()
 
-        events_received: list[dict] = []
-
         async def mock_run(memory: AgentMemory, *, event_callback: Any = None, **kw: Any) -> AgentResult:
             if event_callback:
                 await event_callback({"event_type": "tool_call", "job_id": job_id})
@@ -351,7 +348,8 @@ class TestSSEEvents:
 
         runner = AsyncMock()
         runner.run = mock_run
-        factory = lambda _s: runner
+        def factory(_s: Any) -> AsyncMock:
+            return runner
 
         # Register a queue to capture SSE events.
         queue = registry.register(job_id)
@@ -387,7 +385,8 @@ class TestRetryDeadLetter:
         # Factory that raises a retryable error.
         runner = AsyncMock()
         runner.run = AsyncMock(side_effect=Exception("Connection timeout"))
-        factory = lambda _s: runner
+        def factory(_s: Any) -> AsyncMock:
+            return runner
 
         result = await process_message_with_retry(
             _make_message(job_id),
@@ -411,7 +410,8 @@ class TestRetryDeadLetter:
         # Factory that raises a non-retryable error.
         runner = AsyncMock()
         runner.run = AsyncMock(side_effect=ValueError("Bad data"))
-        factory = lambda _s: runner
+        def factory(_s: Any) -> AsyncMock:
+            return runner
 
         result = await process_message_with_retry(
             _make_message(job_id),
