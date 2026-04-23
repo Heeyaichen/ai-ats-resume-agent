@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import Settings
 from backend.app.logging_config import configure_logging
@@ -59,6 +60,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.score_store: dict = {}
     # SSE registry with Redis pub/sub for cross-process delivery.
     app.state.sse_registry = SSERegistry(redis_url=settings.redis_url)
+
+    # ── CORS ──────────────────────────────────────────────────
+    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # ── Wire real Azure adapters ───────────────────────────────
     blob_adapter = None

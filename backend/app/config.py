@@ -91,6 +91,10 @@ class Settings(BaseSettings):
 
     # ── Security ──────────────────────────────────────────────────
     key_vault_url: str | None = None
+    cors_origins: str = Field(
+        default="http://localhost:5173",
+        description="Allowed CORS origins, comma-separated.",
+    )
 
     # ── Agent Runtime ─────────────────────────────────────────────
     agent_max_iterations: int = 12
