@@ -118,15 +118,14 @@ jobs:
             --image $IMAGE
 
       # ── Azure Function deploy ─────────────────────────────────
+      # The Function uses direct azure-cosmos SDK calls and does NOT
+      # import from backend.app.* — package only the trigger files.
       - name: package function app
         run: |
           mkdir -p /tmp/function-zip
           cp function_trigger/function_app.py /tmp/function-zip/
           cp function_trigger/host.json /tmp/function-zip/
           cp function_trigger/requirements.txt /tmp/function-zip/
-          # Function imports from backend.app — include the package.
-          cp __init__.py /tmp/function-zip/backend/__init__.py
-          cp -r app/ /tmp/function-zip/backend/app/
           cd /tmp/function-zip && zip -r /tmp/function-app.zip .
 
       - name: deploy function app
@@ -134,4 +133,5 @@ jobs:
           az functionapp deployment source config-zip \
             --name ${{ secrets.FUNCTION_APP_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
-            --src /tmp/function-app.zip
+            --src /tmp/function-app.zip \
+            --build-remote true
