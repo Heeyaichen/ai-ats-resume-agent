@@ -107,6 +107,10 @@ resource "azurerm_container_app" "api" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "app-insights-conn-str"
       }
+      env {
+        name  = "CORS_ORIGINS"
+        value = var.cors_origins
+      }
     }
   }
 

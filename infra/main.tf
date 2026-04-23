@@ -43,8 +43,8 @@ module "ai_services" {
   content_safety_sku             = var.content_safety_sku
 
   # Share existing OpenAI account when subscription quota is exhausted.
-  use_existing_openai           = var.use_existing_openai
-  existing_openai_name          = var.existing_openai_name
+  use_existing_openai            = var.use_existing_openai
+  existing_openai_name           = var.existing_openai_name
   existing_openai_resource_group = var.existing_openai_resource_group
 }
 
@@ -119,6 +119,9 @@ module "compute" {
 
   # Share existing Container Apps Environment when subscription quota is exhausted.
   existing_cae_id = var.existing_cae_id
+
+  # CORS origins for the API.
+  cors_origins = var.cors_origins
 }
 
 # ── Observability ──────────────────────────────────────────────

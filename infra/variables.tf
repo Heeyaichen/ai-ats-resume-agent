@@ -224,6 +224,12 @@ variable "vnet_address_space" {
   default = "10.0.0.0/16"
 }
 
+variable "cors_origins" {
+  description = "Comma-separated allowed CORS origins for the API."
+  type        = string
+  default     = "http://localhost:5173"
+}
+
 variable "container_apps_subnet_cidr" {
   type    = string
   default = "10.0.0.0/20"
