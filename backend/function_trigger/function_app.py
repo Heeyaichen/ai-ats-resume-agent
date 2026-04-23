@@ -82,12 +82,10 @@ async def handle_blob_trigger(
     if get_job is not None:
         job = await get_job(job_id)
     else:
-        from backend.app.services.cosmos import CosmosAdapter
-        from backend.app.config import Settings
-
-        settings = Settings()
-        cosmos = CosmosAdapter(settings)
-        job = await cosmos.get_job(job_id)
+        raise RuntimeError(
+            "handle_blob_trigger requires a get_job callable. "
+            "Callers in the Function must pass one explicitly."
+        )
 
     if job is None:
         raise LookupError(f"Job {job_id} not found in Cosmos DB.")
@@ -171,27 +169,24 @@ def on_resume_upload(blob: func.InputStream, msg: func.Out[str]) -> None:
     """
     blob_path = blob.name  # e.g. "resumes-raw/{job_id}/{filename}"
     blob_metadata = blob.metadata or {}
-    job_id_from_binding = blob.trigger_metadata.get("job_id", "")
 
     logger.info("Blob trigger fired for path: %s", blob_path)
 
-    # Validate metadata job_id matches path-derived job_id.
-    metadata_job_id = blob_metadata.get("job_id", "")
-    if metadata_job_id and metadata_job_id != job_id_from_binding:
-        logger.error(
-            "Metadata job_id mismatch: metadata=%s, binding=%s. Skipping.",
-            metadata_job_id, job_id_from_binding,
-        )
+    # Determine job_id from path parsing (the Python v2 model does not expose
+    # trigger_metadata on InputStream, so we parse from the blob path).
+    job_id = parse_job_id_from_path(blob_path)
+    if job_id is None:
+        logger.error("Cannot determine job_id from blob: %s", blob_path)
         return
 
-    # Determine job_id from binding, metadata, or path parsing.
-    job_id = job_id_from_binding or metadata_job_id
-    if not job_id:
-        parsed = parse_job_id_from_path(blob_path)
-        if parsed is None:
-            logger.error("Cannot determine job_id from blob: %s", blob_path)
-            return
-        job_id = parsed
+    # Validate metadata job_id matches path-derived job_id.
+    metadata_job_id = blob_metadata.get("job_id", "")
+    if metadata_job_id and metadata_job_id != job_id:
+        logger.error(
+            "Metadata job_id mismatch: metadata=%s, path=%s. Skipping.",
+            metadata_job_id, job_id,
+        )
+        return
 
     # Run async logic synchronously within the Function.
     loop = asyncio.new_event_loop()
@@ -206,28 +201,37 @@ def on_resume_upload(blob: func.InputStream, msg: func.Out[str]) -> None:
 
 
 async def _get_job_and_build_message(job_id: str, blob_path: str) -> dict[str, Any] | None:
-    """Read the job from Cosmos and build the Service Bus message body."""
-    from backend.app.services.cosmos import CosmosAdapter
-    from backend.app.config import Settings
+    """Read the job from Cosmos using the azure-cosmos SDK directly.
 
-    try:
-        settings = Settings()
-    except Exception:
-        settings = Settings(
-            azure_openai_endpoint=os.environ.get(
-                "AZURE_OPENAI_ENDPOINT", "https://placeholder.openai.azure.com/"
-            ),
-        )
+    Avoids importing backend.app.* (which depends on pydantic) so the
+    Function can run with its minimal requirements.txt.
+    """
+    cosmos_endpoint = os.environ.get("COSMOS_ENDPOINT")
+    cosmos_key = os.environ.get("COSMOS_KEY")
+    cosmos_db = os.environ.get("COSMOS_DATABASE_NAME", "ats-db")
 
-    cosmos = CosmosAdapter(settings)
-    job = await cosmos.get_job(job_id)
+    if not cosmos_endpoint or not cosmos_key:
+        logger.error("COSMOS_ENDPOINT / COSMOS_KEY not configured. Skipping.")
+        return None
 
-    if job is None:
-        logger.error("Job %s not found in Cosmos DB. Skipping.", job_id)
+    from azure.cosmos.aio import CosmosClient
+
+    async with CosmosClient(cosmos_endpoint, credential=cosmos_key) as client:
+        database = client.get_database_client(cosmos_db)
+        container = database.get_container_client("jobs")
+        try:
+            job_doc = await container.read_item(item=job_id, partition_key=job_id)
+        except Exception as exc:
+            logger.error("Job %s not found in Cosmos DB: %s", job_id, exc)
+            return None
+
+    jd_text = job_doc.get("job_description", "")
+    if not jd_text:
+        logger.error("Job %s has no job_description. Skipping.", job_id)
         return None
 
     return {
         "job_id": job_id,
         "blob_path": blob_path,
-        "jd_text": job.job_description,
+        "jd_text": jd_text,
     }
