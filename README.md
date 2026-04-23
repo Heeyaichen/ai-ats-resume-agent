@@ -7,7 +7,7 @@ AI-powered Applicant Tracking System (ATS) Resume Screening Agent. Accepts PDF/D
 ```
 SPA (React) → CDN → Static Web Apps
                     ↓
-              API Management (JWT, rate limit)
+              API Management (JWT, rate limit) [dev only]
                     ↓
               FastAPI (Container Apps) → Blob Storage → Function → Service Bus
                     ↑                                              ↓
@@ -21,7 +21,7 @@ SPA (React) → CDN → Static Web Apps
 **Data flow:**
 
 1. Recruiter signs in via Microsoft Entra ID.
-2. SPA sends `POST /api/upload` through APIM with file + job description.
+2. SPA sends `POST /api/upload` (through APIM in dev; directly in cost-optimized production) with file + job description.
 3. FastAPI validates, creates a job record, uploads the resume blob.
 4. Blob creation triggers the Azure Function.
 5. The Function parses `job_id` from the path, reads the job, enqueues a Service Bus message.
@@ -188,6 +188,20 @@ terraform apply -var-file=env/prod.tfvars
 
 APIM is provisioned by Terraform (Developer SKU in dev) but does not yet enforce API policy (JWT validation, rate limiting, request forwarding to the FastAPI backend). The FastAPI Container App is publicly accessible via its external ingress. APIM policy configuration is a follow-up task after initial deployment.
 
+### Cost-Optimized Production Constraints
+
+The production environment is configured for cost control on a subscription with limited quotas. The following constraints apply:
+
+| Constraint | Dev | Cost-Optimized Production | Reason |
+|------------|-----|---------------------------|--------|
+| Azure OpenAI | Dedicated (`ats-agent-dev-openai`) | Shares dev OpenAI account | 1 OpenAI account per subscription |
+| Container Apps Environment | Dedicated (`ats-agent-dev-cae`) | Shares dev CAE | 1 CAE per region per subscription |
+| API Management | Enabled (Developer SKU) | Disabled (`enable_apim=false`) | APIM creation blocked on free trial |
+| AI Search | Basic SKU | Free SKU | Basic unavailable in swedencentral |
+| Function trigger latency | Consumption (2–10 min scan) | Same | Expected on Consumption plan |
+
+These are controlled via `infra/env/prod.tfvars` toggles: `use_existing_openai`, `existing_cae_id`, `enable_apim`, and `search_sku`. This configuration prioritizes deployability and cost control over full environment isolation. For a production deployment with full isolation, request subscription quota increases or use a pay-as-you-go subscription.
+
 ## Environment Variable Reference
 
 | Variable | Required | Default | Description |
@@ -284,7 +298,7 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 | Function App | Consumption (Y1) | ~$1 |
 | **Total (estimated)** | | **~$370–$470/month** |
 
-> Prod costs will be higher based on SKU upgrades (Premium Redis, Standard AI Search with replicas, higher Cosmos throughput). Add Azure budget alerts per environment.
+> Prod costs are lower than dev due to the cost-optimized production configuration (shared OpenAI, shared CAE, free Search, no APIM). Add Azure budget alerts per environment.
 
 ## Troubleshooting
 
@@ -374,7 +388,7 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 │   │   ├── main.py        # FastAPI app factory
 │   │   └── worker.py      # Service Bus worker with retry/dead-letter
 │   ├── function_trigger/  # Azure Function blob trigger (requirements.txt)
-│   ├── tests/             # pytest suite (147 tests)
+│   ├── tests/             # pytest suite (150 tests)
 │   ├── Dockerfile         # Multi-target: api (uvicorn) and worker
 │   ├── run_worker.py      # Worker container entrypoint
 │   ├── requirements.in    # FastAPI + worker deps (no azure-functions)

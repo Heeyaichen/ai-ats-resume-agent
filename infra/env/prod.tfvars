@@ -7,7 +7,7 @@ location    = "swedencentral"
 openai_chat_model_name    = "gpt-4o"
 openai_chat_model_version = "2024-11-20"
 
-# ── SKU overrides (cost-optimized for portfolio project) ────────
+# ── SKU overrides (cost-optimized production) ───────────────────
 storage_replication_type = "ZRS"
 openai_sku               = "S0"
 openai_capacity          = 30
