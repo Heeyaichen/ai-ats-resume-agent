@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 
 import pytest
 
@@ -11,8 +12,14 @@ from backend.app.config import Settings, Environment
 class TestSettings:
     def test_required_field_missing_raises(self) -> None:
         """azure_openai_endpoint is required and has no default."""
-        with pytest.raises(Exception):
-            Settings()  # type: ignore[call-arg]
+        # Temporarily remove env var so pydantic-settings can't fill it.
+        saved = os.environ.pop("AZURE_OPENAI_ENDPOINT", None)
+        try:
+            with pytest.raises(Exception):
+                Settings()  # type: ignore[call-arg]
+        finally:
+            if saved is not None:
+                os.environ["AZURE_OPENAI_ENDPOINT"] = saved
 
     def test_defaults(self) -> None:
         s = Settings(azure_openai_endpoint="https://test.openai.azure.com/")
