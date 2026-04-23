@@ -1,6 +1,7 @@
 # Direct dependencies for the ATS agent backend.
 # Phase 2: resolve current compatible versions and pin in requirements.txt.
 # Reference: design spec Section 15 — do not blindly copy stale pins.
+# Updated: azure-functions is a CI-only dependency (pip install in workflow).
 
 fastapi>=0.111.0
 python-multipart>=0.0.9
