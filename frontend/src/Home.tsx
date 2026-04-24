@@ -80,16 +80,17 @@ const Home: React.FC = () => {
     const last = sseEvents[sseEvents.length - 1];
     if (last?.event_type === "complete") {
       setJobState(
-        scoreData?.human_review_required
+        last.result?.human_review_required
           ? "completed_with_review"
           : "completed",
       );
     }
-  }, [sseEvents, scoreData]);
+  }, [sseEvents]);
 
   // ── Score polling fallback ──────────────────────────────────
   // If SSE misses the completion (e.g. blob trigger polling gap),
   // poll GET /api/score/{job_id} every 5s to surface the result.
+  // Transition on terminal status even when score_data is absent.
   React.useEffect(() => {
     if (!jobId || isTerminalState(jobState)) return;
     const id = setInterval(async () => {
@@ -97,11 +98,13 @@ const Home: React.FC = () => {
         const payload = await fetchScore(jobId);
         if (payload.score_data) {
           setScoreData(payload.score_data);
-          setJobState(
-            payload.score_data.human_review_required
-              ? "completed_with_review"
-              : "completed",
-          );
+        }
+        if (
+          payload.status === "completed" ||
+          payload.status === "completed_with_review" ||
+          payload.status === "failed_review_required"
+        ) {
+          setJobState(payload.status as JobState);
         }
       } catch {
         // Polling failure is non-fatal; SSE may still deliver.
@@ -168,7 +171,9 @@ const Home: React.FC = () => {
   }
 
   const isBusy = jobState === "uploading" || jobState === "queued" || jobState === "agent_running";
-  const showReport = isTerminalState(jobState) && scoreData;
+  const isTerminal = isTerminalState(jobState);
+  const showReport = isTerminal && scoreData;
+  const showReviewOnly = isTerminal && !scoreData;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
@@ -272,6 +277,34 @@ const Home: React.FC = () => {
           <div className="rounded-xl border bg-white p-6">
             <h2 className="text-lg font-semibold mb-3">Privacy</h2>
             <PrivacyBadges piiRedacted={true} />
+          </div>
+
+          {/* Reset */}
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-2 rounded-lg border px-5 py-2.5 font-medium hover:bg-gray-50 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Screen Another Resume
+          </button>
+        </div>
+      )}
+
+      {/* Terminal without score (review-required / unable to score) */}
+      {showReviewOnly && (
+        <div className="space-y-6">
+          <HumanReviewBanner
+            reason={
+              jobState === "failed_review_required"
+                ? "The agent was unable to fully process this resume. Manual review is required."
+                : "The resume was flagged for human review. No automated score was produced."
+            }
+          />
+
+          {/* Trace */}
+          <div className="rounded-xl border bg-white p-6">
+            <h2 className="text-lg font-semibold mb-3">Agent Trace</h2>
+            <AgentTracePanel events={sseEvents} />
           </div>
 
           {/* Reset */}
