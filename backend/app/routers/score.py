@@ -147,7 +147,7 @@ async def get_score(job_id: str, request: Request) -> dict[str, Any]:
             except Exception:
                 pass
         if score is not None:
-            response["score"] = score
+            response["score_data"] = score
         return response
 
     # Fallback: in-memory store.
@@ -163,7 +163,7 @@ async def get_score(job_id: str, request: Request) -> dict[str, Any]:
     score_store: dict = request.app.state.score_store
     score = score_store.get(job_id)
     if score is not None:
-        response["score"] = score
+        response["score_data"] = score
     return response
 
 

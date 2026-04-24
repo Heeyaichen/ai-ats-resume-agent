@@ -140,7 +140,7 @@ class TestGetScore:
         assert score_resp.status_code == 200
         body = score_resp.json()
         assert body["status"] == "completed"
-        assert body["score"]["score"] == 85
+        assert body["score_data"]["score"] == 85
 
 
 # ── SSE stream ──────────────────────────────────────────────────
