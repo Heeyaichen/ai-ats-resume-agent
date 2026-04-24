@@ -4,17 +4,21 @@ Design spec Section 5.1:
 - Auth: Entra ID bearer token required (placeholder for now).
 - Request: multipart form data with file and job_description.
 - Validation: .pdf/.docx only, max 10 MB, JD non-empty and < 50 000 chars.
-- Creates job record, uploads blob, returns {job_id, status: queued}.
+- Creates job record, uploads blob, enqueues Service Bus message, returns {job_id, status: queued}.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from backend.app.models.jobs import JobRecord, JobStatus, UploadResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -101,5 +105,37 @@ async def upload(
     cosmos_adapter = getattr(request.app.state, "cosmos_adapter", None)
     if cosmos_adapter is not None:
         await cosmos_adapter.upsert_job(job)
+
+    # Enqueue Service Bus message directly so the worker starts immediately,
+    # without waiting for the blob trigger to poll (which can take 5-10 min
+    # on Consumption plan).
+    sb_conn = settings.servicebus_connection_string
+    logger.info("SB enqueue check: job=%s has_conn=%s", job_id, bool(sb_conn))
+    if sb_conn:
+        try:
+            from azure.servicebus.aio import ServiceBusClient
+            from azure.servicebus import ServiceBusMessage
+
+            message_body = {
+                "job_id": job_id,
+                "blob_path": blob_path,
+                "jd_text": job_description,
+            }
+            async with ServiceBusClient.from_connection_string(
+                settings.servicebus_connection_string,
+            ) as sb_client:
+                sender = sb_client.get_queue_sender(
+                    queue_name=settings.servicebus_queue_name,
+                )
+                async with sender:
+                    await sender.send_messages(
+                        ServiceBusMessage(
+                            body=json.dumps(message_body),
+                            message_id=job_id,
+                        ),
+                    )
+            logger.info("Enqueued job %s to Service Bus from upload endpoint", job_id)
+        except Exception:
+            logger.exception("Failed to enqueue job %s to Service Bus", job_id)
 
     return UploadResponse(job_id=job_id, status=JobStatus.QUEUED)

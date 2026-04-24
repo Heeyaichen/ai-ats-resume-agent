@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "./authConfig";
-import { setAuthToken, uploadResume } from "./api";
+import { setAuthToken, uploadResume, fetchScore } from "./api";
 import { useSSEStream } from "./useSSEStream";
 import {
   JobState,
@@ -86,6 +86,29 @@ const Home: React.FC = () => {
       );
     }
   }, [sseEvents, scoreData]);
+
+  // ── Score polling fallback ──────────────────────────────────
+  // If SSE misses the completion (e.g. blob trigger polling gap),
+  // poll GET /api/score/{job_id} every 5s to surface the result.
+  React.useEffect(() => {
+    if (!jobId || isTerminalState(jobState)) return;
+    const id = setInterval(async () => {
+      try {
+        const payload = await fetchScore(jobId);
+        if (payload.score_data) {
+          setScoreData(payload.score_data);
+          setJobState(
+            payload.score_data.human_review_required
+              ? "completed_with_review"
+              : "completed",
+          );
+        }
+      } catch {
+        // Polling failure is non-fatal; SSE may still deliver.
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [jobId, jobState]);
 
   // ── Upload handler ────────────────────────────────────────────
   const handleUpload = async () => {
