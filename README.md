@@ -9,9 +9,11 @@ SPA (React) → CDN → Static Web Apps
                     ↓
               API Management (JWT, rate limit) [dev only]
                     ↓
-              FastAPI (Container Apps) → Blob Storage → Function → Service Bus
-                    ↑                                              ↓
-              SSE stream ← Worker (guarded agent loop) ←──────────┘
+              FastAPI (Container Apps) → Service Bus (direct enqueue)
+                    ↑         ↓
+              SSE stream  Blob Storage → Function (backup trigger)
+                    ↑                       ↓
+              Worker (guarded agent loop) ←─┘
                               ↓
                     Azure OpenAI + 9 tool functions
                     (Document Intelligence, Translator, AI Language,
@@ -22,10 +24,10 @@ SPA (React) → CDN → Static Web Apps
 
 1. Recruiter signs in via Microsoft Entra ID.
 2. SPA sends `POST /api/upload` (through APIM in dev; directly in cost-optimized production) with file + job description.
-3. FastAPI validates, creates a job record, uploads the resume blob.
-4. Blob creation triggers the Azure Function.
-5. The Function parses `job_id` from the path, reads the job, enqueues a Service Bus message.
-6. The worker receives the message, runs the guarded agent, streams SSE events, persists results.
+3. FastAPI validates, creates a job record, uploads the resume blob, **enqueues a Service Bus message directly**.
+4. The blob trigger Function serves as a backup path (Consumption plan blob polling can take minutes).
+5. The worker receives the message, runs the guarded agent, streams SSE events, persists results.
+6. The frontend uses SSE for real-time progress and polls `GET /api/score/{job_id}` as a completion fallback.
 
 ## What Makes This a Guarded Agent
 
@@ -198,7 +200,7 @@ The production environment is configured for cost control on a subscription with
 | Container Apps Environment | Dedicated (`ats-agent-dev-cae`) | Shares dev CAE | 1 CAE per region per subscription |
 | API Management | Enabled (Developer SKU) | Disabled (`enable_apim=false`) | APIM creation blocked on free trial |
 | AI Search | Basic SKU | Free SKU | Basic unavailable in swedencentral |
-| Function trigger latency | Consumption (2–10 min scan) | Same | Expected on Consumption plan |
+| Function trigger latency | Consumption (2–10 min scan) | Direct SB enqueue bypasses delay | Blob trigger is backup path only |
 
 These are controlled via `infra/env/prod.tfvars` toggles: `use_existing_openai`, `existing_cae_id`, `enable_apim`, and `search_sku`. This configuration prioritizes deployability and cost control over full environment isolation. For a production deployment with full isolation, request subscription quota increases or use a pay-as-you-go subscription.
 
