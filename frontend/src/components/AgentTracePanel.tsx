@@ -11,14 +11,14 @@ interface Props {
 const AgentTracePanel: React.FC<Props> = ({ events }) => {
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4 text-center text-sm text-gray-400">
+      <p className="py-6 text-center text-sm text-tertiary">
         Waiting for agent events...
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="space-y-2 max-h-96 overflow-y-auto">
+    <div className="space-y-1.5 max-h-96 overflow-y-auto">
       {events.map((evt, i) => (
         <TraceCard key={i} event={evt} />
       ))}
@@ -41,44 +41,51 @@ const toolDisplayName: Record<string, string> = {
 const TraceCard: React.FC<{ event: SSEEvent }> = ({ event }) => {
   if (event.event_type === "tool_call") {
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
-        <Wrench className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
-        <div>
-          <p className="font-medium text-blue-800">
+      <div className="flex items-start gap-3 rounded-lg bg-accent/[0.06] px-3.5 py-2.5 text-sm">
+        <Wrench className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-accent" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-label">
             {toolDisplayName[event.tool_name] ?? event.tool_name}
           </p>
-          <p className="text-blue-600 text-xs mt-0.5">{event.arguments_summary}</p>
+          <p className="text-xs text-secondary mt-0.5 truncate">
+            {event.arguments_summary}
+          </p>
         </div>
-        <span className="ml-auto text-xs text-blue-400">iter {event.iteration}</span>
+        <span className="text-xs text-tertiary shrink-0">
+          iter {event.iteration}
+        </span>
       </div>
     );
   }
 
   if (event.event_type === "tool_result") {
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
-        <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-500" />
+      <div className="flex items-start gap-3 rounded-lg bg-[#34c759]/[0.06] px-3.5 py-2.5 text-sm">
+        <CheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#34c759]" />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-green-800">
+          <p className="font-medium text-label">
             {toolDisplayName[event.tool_name] ?? event.tool_name}
           </p>
-          <p className="text-green-600 text-xs mt-0.5 truncate">{event.result_summary}</p>
+          <p className="text-xs text-secondary mt-0.5 truncate">
+            {event.result_summary}
+          </p>
         </div>
-        <span className="text-xs text-green-400">{event.duration_ms}ms</span>
+        <span className="text-xs text-tertiary shrink-0">
+          {event.duration_ms}ms
+        </span>
       </div>
     );
   }
 
   if (event.event_type === "error") {
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
-        <p className="text-red-700">{event.message}</p>
+      <div className="flex items-start gap-3 rounded-lg bg-[#ff3b30]/[0.06] px-3.5 py-2.5 text-sm">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#ff3b30]" />
+        <p className="text-[#ff3b30]">{event.message}</p>
       </div>
     );
   }
 
-  // complete event — no card needed here (handled by report).
   return null;
 };
 

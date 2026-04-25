@@ -8,43 +8,44 @@ interface Props {
 
 const ScoreGauge: React.FC<Props> = ({ score }) => {
   if (score === null) {
-    return <span className="text-lg text-gray-400">Score unavailable</span>;
+    return <span className="text-sm text-tertiary">Score unavailable</span>;
   }
-  const radius = 60;
-  const stroke = 8;
+
+  const radius = 54;
+  const stroke = 6;
   const normalized = Math.max(0, Math.min(100, score));
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (normalized / 100) * circumference;
 
-  const color =
-    normalized >= 70
-      ? "text-green-500"
-      : normalized >= 40
-        ? "text-amber-500"
-        : "text-red-500";
-
   const strokeColor =
     normalized >= 70
-      ? "stroke-green-500"
+      ? "stroke-[#34c759]"
       : normalized >= 40
-        ? "stroke-amber-500"
-        : "stroke-red-500";
+        ? "stroke-[#ff9500]"
+        : "stroke-[#ff3b30]";
+
+  const textColor =
+    normalized >= 70
+      ? "text-[#34c759]"
+      : normalized >= 40
+        ? "text-[#ff9500]"
+        : "text-[#ff3b30]";
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width="140" height="140" className="-rotate-90">
+    <div className="flex flex-col items-center gap-0.5">
+      <svg width="128" height="128" className="-rotate-90">
         <circle
-          cx="70"
-          cy="70"
+          cx="64"
+          cy="64"
           r={radius}
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-gray-200"
+          className="text-separator"
         />
         <circle
-          cx="70"
-          cy="70"
+          cx="64"
+          cy="64"
           r={radius}
           fill="none"
           strokeWidth={stroke}
@@ -54,8 +55,10 @@ const ScoreGauge: React.FC<Props> = ({ score }) => {
           className={`${strokeColor} transition-all duration-700`}
         />
       </svg>
-      <span className={`text-3xl font-bold ${color}`}>{score}</span>
-      <span className="text-xs text-gray-400">out of 100</span>
+      <span className={`text-4xl font-semibold tracking-tight ${textColor}`}>
+        {score}
+      </span>
+      <span className="text-xs text-secondary">out of 100</span>
     </div>
   );
 };
