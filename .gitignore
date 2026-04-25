@@ -26,5 +26,9 @@ terraform.tfvars
 .vscode/
 .idea/
 
+# Local agent instructions/prompts
+CLAUDE.md
+implementation_prompt.md
+
 # OS
 .DS_Store
