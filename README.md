@@ -1,5 +1,21 @@
 # AI-ATS-RESUME-AGENT
 
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![React 18](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=0B0F19)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5.3-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Azure](https://img.shields.io/badge/Azure-Cloud-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-gpt--4o-0078D4?style=for-the-badge&logo=openai&logoColor=white)
+![Azure Container Apps](https://img.shields.io/badge/Azure%20Container%20Apps-API%20%2B%20Worker-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Azure Static Web Apps](https://img.shields.io/badge/Azure%20Static%20Web%20Apps-Frontend-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Cosmos DB](https://img.shields.io/badge/Cosmos%20DB-State%20Store-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Service Bus](https://img.shields.io/badge/Service%20Bus-Queue-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-SSE%20%2B%20Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-1.9-844FBA?style=for-the-badge&logo=terraform&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
 AI-powered Applicant Tracking System (ATS) Resume Screening Agent. Accepts PDF/DOCX resume uploads and job descriptions, runs a guarded agentic reasoning loop using Azure OpenAI function calling, streams agent progress via Server-Sent Events (SSE), and produces recruiter-readable ATS reports.
 
 ## Architecture Overview
@@ -100,81 +116,397 @@ cd backend
 pytest tests/test_worker.py -v
 ```
 
-## Terraform Deployment
+## Production Deployment Runbook
 
-### Deployment Order
+This runbook is the path for a clean deployment from GitHub Actions to the cost-optimized production environment. It assumes a fresh clone, an Azure subscription with the required providers registered, and `az`, `gh`, `terraform`, `docker`, Node.js 20+, and Python 3.11+ available locally.
 
-1. **Configure Azure OIDC** — Create an Entra ID application registration and federated credential for your GitHub repo.
-2. **Bootstrap Terraform state storage** — Create a storage account and container for remote state before the first CI `terraform init`.
-3. **Configure GitHub secrets/variables** — See the required secrets table below.
-4. **Run Terraform plan/apply** — CI runs this automatically on push to `main`. For first-time setup, run manually.
-5. **Build/deploy API, worker, Function, frontend** — CI deploys these automatically after Terraform.
-
-### Bootstrap Terraform Remote State
-
-Before the first CI `terraform init`, create the state storage:
+### 1. Set Operator Variables
 
 ```bash
-RESOURCE_GROUP="tfstate-rg"
-STORAGE_ACCOUNT="tfstate$RANDOM"
-az group create --name $RESOURCE_GROUP --location swedencentral
-az storage account create --name $STORAGE_ACCOUNT --resource-group $RESOURCE_GROUP --sku Standard_LRS
-az storage container create --name tfstate --account-name $STORAGE_ACCOUNT
+export REPO="Heeyaichen/ai-ats-resume-agent"
+export SUBSCRIPTION_ID="<azure-subscription-id>"
+export LOCATION="swedencentral"
+export TF_STATE_RESOURCE_GROUP="ats-agent-tfstate-rg"
+export TF_STATE_STORAGE_ACCOUNT="atsagenttfstate001az"
+export TF_STATE_CONTAINER="tfstate"
+
+az account set --subscription "$SUBSCRIPTION_ID"
+export TENANT_ID="$(az account show --query tenantId -o tsv)"
 ```
 
-Then set `TF_STATE_RESOURCE_GROUP`, `TF_STATE_STORAGE_ACCOUNT`, `TF_STATE_CONTAINER` as GitHub secrets.
+### 2. Create GitHub Environments
 
-### Configure GitHub OIDC
+The workflows use environment-scoped secrets and variables.
 
-1. Create an Entra ID application registration and federated credential for your GitHub repo.
-2. Note the `client_id`, `tenant_id`, and `subscription_id`.
-3. Add them as GitHub repository secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+```bash
+gh api --method PUT "repos/${REPO}/environments/dev"
+gh api --method PUT "repos/${REPO}/environments/production"
+```
 
-### Deploy Infrastructure
+| Environment | Used by | Purpose |
+|-------------|---------|---------|
+| `dev` | Terraform PR validation | `terraform plan` against `env/dev.tfvars` |
+| `production` | Main-branch deploys | Terraform apply, backend deploy, frontend deploy |
+
+### 3. Configure GitHub OIDC for Azure
+
+Create one Entra app registration for GitHub Actions and grant it access to the subscription. `Contributor` is enough for most resources; `User Access Administrator` is required if Terraform creates or updates RBAC assignments.
+
+```bash
+export GITHUB_APP_NAME="ats-agent-github-actions"
+
+export AZURE_CLIENT_ID="$(az ad app create \
+  --display-name "$GITHUB_APP_NAME" \
+  --query appId \
+  -o tsv)"
+
+az ad sp create --id "$AZURE_CLIENT_ID"
+
+export APP_OBJECT_ID="$(az ad app show --id "$AZURE_CLIENT_ID" --query id -o tsv)"
+
+az role assignment create \
+  --assignee "$AZURE_CLIENT_ID" \
+  --role Contributor \
+  --scope "/subscriptions/${SUBSCRIPTION_ID}"
+
+az role assignment create \
+  --assignee "$AZURE_CLIENT_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/${SUBSCRIPTION_ID}"
+```
+
+Add federated credentials for both GitHub environments:
+
+```bash
+cat > /tmp/ats-agent-gh-dev-oidc.json <<EOF
+{
+  "name": "github-dev-environment",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:${REPO}:environment:dev",
+  "audiences": ["api://AzureADTokenExchange"]
+}
+EOF
+
+cat > /tmp/ats-agent-gh-production-oidc.json <<EOF
+{
+  "name": "github-production-environment",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:${REPO}:environment:production",
+  "audiences": ["api://AzureADTokenExchange"]
+}
+EOF
+
+az ad app federated-credential create --id "$APP_OBJECT_ID" --parameters @/tmp/ats-agent-gh-dev-oidc.json
+az ad app federated-credential create --id "$APP_OBJECT_ID" --parameters @/tmp/ats-agent-gh-production-oidc.json
+```
+
+### 4. Bootstrap Terraform Remote State
+
+Terraform state storage must exist before the first CI run.
+
+```bash
+az group create \
+  --name "$TF_STATE_RESOURCE_GROUP" \
+  --location "$LOCATION"
+
+az storage account create \
+  --name "$TF_STATE_STORAGE_ACCOUNT" \
+  --resource-group "$TF_STATE_RESOURCE_GROUP" \
+  --location "$LOCATION" \
+  --sku Standard_LRS \
+  --kind StorageV2
+
+az storage container create \
+  --name "$TF_STATE_CONTAINER" \
+  --account-name "$TF_STATE_STORAGE_ACCOUNT" \
+  --auth-mode login
+```
+
+### 5. Set Required GitHub Environment Secrets
+
+Set the Azure auth and Terraform backend secrets in both `dev` and `production`:
+
+```bash
+for ENVIRONMENT in dev production; do
+  printf "%s" "$AZURE_CLIENT_ID" | gh secret set AZURE_CLIENT_ID --env "$ENVIRONMENT" --repo "$REPO"
+  printf "%s" "$TENANT_ID" | gh secret set AZURE_TENANT_ID --env "$ENVIRONMENT" --repo "$REPO"
+  printf "%s" "$SUBSCRIPTION_ID" | gh secret set AZURE_SUBSCRIPTION_ID --env "$ENVIRONMENT" --repo "$REPO"
+  printf "%s" "$TF_STATE_RESOURCE_GROUP" | gh secret set TF_STATE_RESOURCE_GROUP --env "$ENVIRONMENT" --repo "$REPO"
+  printf "%s" "$TF_STATE_STORAGE_ACCOUNT" | gh secret set TF_STATE_STORAGE_ACCOUNT --env "$ENVIRONMENT" --repo "$REPO"
+  printf "%s" "$TF_STATE_CONTAINER" | gh secret set TF_STATE_CONTAINER --env "$ENVIRONMENT" --repo "$REPO"
+done
+```
+
+### 6. Review Cost-Optimized Production Variables
+
+Review `infra/env/prod.tfvars` before applying. The current production profile is intentionally cost-optimized:
+
+- `enable_apim=false`
+- `enable_frontdoor=false`
+- `search_sku="free"`
+- `static_web_app_sku="Free"`
+- `redis_sku="Basic"`
+- `use_existing_openai=true`
+- `existing_cae_id` points to the shared Container Apps Environment when subscription quota requires it
+- `cors_origins` includes the production Static Web Apps URL and localhost
+
+For a fully isolated production environment, use a subscription with sufficient quotas and replace the shared OpenAI/CAE settings.
+
+### 7. Run Production Terraform Plan and Apply
+
+Manual first deploy:
 
 ```bash
 cd infra
 
-# Dev environment
 terraform init \
-  -backend-config="resource_group_name=<rg>" \
-  -backend-config="storage_account_name=<sa>" \
-  -backend-config="container_name=tfstate" \
-  -backend-config="key=dev.tfstate"
-terraform apply -var-file=env/dev.tfvars
-
-# Prod environment
-terraform init \
-  -backend-config="resource_group_name=<rg>" \
-  -backend-config="storage_account_name=<sa>" \
-  -backend-config="container_name=tfstate" \
+  -backend-config="resource_group_name=${TF_STATE_RESOURCE_GROUP}" \
+  -backend-config="storage_account_name=${TF_STATE_STORAGE_ACCOUNT}" \
+  -backend-config="container_name=${TF_STATE_CONTAINER}" \
   -backend-config="key=prod.tfstate"
-terraform apply -var-file=env/prod.tfvars
+
+terraform fmt -recursive -check
+terraform validate
+terraform plan -var-file=env/prod.tfvars -out=prod.tfplan
+terraform apply prod.tfplan
 ```
 
-### Required GitHub Environments
+Capture deployment outputs:
 
-| Environment | Purpose |
-|-------------|---------|
-| `dev` | PR validation (terraform plan) |
-| `production` | Main-branch deploys (terraform apply, backend/frontend deploy) |
+```bash
+terraform output
+export RESOURCE_GROUP_NAME="$(terraform output -raw resource_group_name)"
+export ACR_NAME="$(terraform output -raw acr_name)"
+export API_CONTAINER_APP_NAME="$(terraform output -raw api_container_app_name)"
+export WORKER_CONTAINER_APP_NAME="$(terraform output -raw worker_container_app_name)"
+export FUNCTION_APP_NAME="$(terraform output -raw function_app_name)"
+export STATIC_WEB_APP_NAME="$(terraform output -raw static_web_app_name)"
+export API_URL="https://$(terraform output -raw api_url)"
+export SWA_URL="https://$(terraform output -raw static_web_app_url)"
+```
 
-### Required GitHub Secrets
+### 8. Set Production Deploy Secrets
 
-| Secret | Description |
-|--------|-------------|
-| `AZURE_CLIENT_ID` | Entra ID app registration client ID (OIDC) |
-| `AZURE_TENANT_ID` | Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-| `ACR_NAME` | Azure Container Registry name (no `.azurecr.io`) |
-| `API_CONTAINER_APP_NAME` | FastAPI Container App name |
-| `WORKER_CONTAINER_APP_NAME` | Worker Container App name |
-| `FUNCTION_APP_NAME` | Function App name |
-| `RESOURCE_GROUP_NAME` | Resource group containing compute resources |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Static Web Apps deployment token |
-| `TF_STATE_RESOURCE_GROUP` | Resource group for Terraform state storage account |
-| `TF_STATE_STORAGE_ACCOUNT` | Storage account name for Terraform remote state |
-| `TF_STATE_CONTAINER` | Blob container name for Terraform state files |
+The backend workflow needs compute resource names from Terraform outputs:
+
+```bash
+printf "%s" "$ACR_NAME" | gh secret set ACR_NAME --env production --repo "$REPO"
+printf "%s" "$API_CONTAINER_APP_NAME" | gh secret set API_CONTAINER_APP_NAME --env production --repo "$REPO"
+printf "%s" "$WORKER_CONTAINER_APP_NAME" | gh secret set WORKER_CONTAINER_APP_NAME --env production --repo "$REPO"
+printf "%s" "$FUNCTION_APP_NAME" | gh secret set FUNCTION_APP_NAME --env production --repo "$REPO"
+printf "%s" "$RESOURCE_GROUP_NAME" | gh secret set RESOURCE_GROUP_NAME --env production --repo "$REPO"
+```
+
+The frontend workflow needs the Static Web Apps deployment token:
+
+```bash
+export SWA_TOKEN="$(az staticwebapp secrets list \
+  --name "$STATIC_WEB_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --query 'properties.apiKey' \
+  -o tsv)"
+
+printf "%s" "$SWA_TOKEN" | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN --env production --repo "$REPO"
+unset SWA_TOKEN
+```
+
+### 9. Configure Frontend Auth Variables
+
+The Vite variables are public browser configuration, so they are GitHub environment variables, not secrets.
+
+Use the app registration configured for SPA sign-in and API scope:
+
+```bash
+export FRONTEND_CLIENT_ID="<spa-app-registration-client-id>"
+export API_SCOPE="api://${FRONTEND_CLIENT_ID}/access_as_user"
+
+gh variable set VITE_AZURE_CLIENT_ID --env production --repo "$REPO" --body "$FRONTEND_CLIENT_ID"
+gh variable set VITE_AZURE_AUTHORITY --env production --repo "$REPO" --body "https://login.microsoftonline.com/${TENANT_ID}"
+gh variable set VITE_API_SCOPE --env production --repo "$REPO" --body "$API_SCOPE"
+gh variable set VITE_API_BASE_URL --env production --repo "$REPO" --body "${API_URL}/api"
+```
+
+The SPA app registration must include the production redirect URI:
+
+```bash
+az ad app update \
+  --id "$FRONTEND_CLIENT_ID" \
+  --spa-redirect-uris \
+    "http://localhost:5173" \
+    "$SWA_URL"
+```
+
+If the `access_as_user` scope does not exist yet, create it in Microsoft Entra ID:
+
+`App registrations -> your SPA/API app -> Expose an API -> Application ID URI api://<client-id> -> Add scope access_as_user`.
+
+### 10. Trigger CI/CD Deployment
+
+The workflows are path-filtered:
+
+- Changes under `infra/**` trigger Terraform apply.
+- Changes under `backend/**` trigger API/worker image build and Function deploy.
+- Changes under `frontend/**` trigger frontend deploy.
+- Frontend can also be redeployed manually with `workflow_dispatch`.
+
+After merging to `main`, monitor:
+
+```bash
+gh run list --repo "$REPO" --branch main --limit 10
+gh run watch <run-id> --repo "$REPO"
+```
+
+Manual frontend redeploy:
+
+```bash
+gh workflow run "Frontend CI/CD" --repo "$REPO" --ref main
+```
+
+Manual first runtime deploy when no backend change is being pushed:
+
+```bash
+# API image
+cd backend
+az acr login --name "$ACR_NAME"
+export IMAGE_TAG="$(git rev-parse --short HEAD)"
+export API_IMAGE="${ACR_NAME}.azurecr.io/ats-agent-api:${IMAGE_TAG}"
+docker build --target api -t "$API_IMAGE" .
+docker push "$API_IMAGE"
+az containerapp update \
+  --name "$API_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --image "$API_IMAGE"
+
+# Worker image
+export WORKER_IMAGE="${ACR_NAME}.azurecr.io/ats-agent-worker:${IMAGE_TAG}"
+docker build --target worker -t "$WORKER_IMAGE" .
+docker push "$WORKER_IMAGE"
+az containerapp update \
+  --name "$WORKER_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --image "$WORKER_IMAGE"
+
+# Function backup trigger
+rm -rf /tmp/function-zip /tmp/function-app.zip
+mkdir -p /tmp/function-zip
+cp function_trigger/function_app.py /tmp/function-zip/
+cp function_trigger/host.json /tmp/function-zip/
+cp function_trigger/requirements.txt /tmp/function-zip/
+cd /tmp/function-zip
+zip -r /tmp/function-app.zip .
+az functionapp deployment source config-zip \
+  --name "$FUNCTION_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --src /tmp/function-app.zip \
+  --build-remote true
+
+# Frontend production deploy through GitHub Actions
+cd -
+gh workflow run "Frontend CI/CD" --repo "$REPO" --ref main
+```
+
+If a workflow fails for a transient Azure deployment issue, rerun it:
+
+```bash
+gh run rerun <run-id> --repo "$REPO"
+```
+
+### 11. Production Smoke Test
+
+Verify infrastructure health:
+
+```bash
+curl -s "${API_URL}/api/health"
+curl -s -o /dev/null -w "%{http_code}\n" "$SWA_URL"
+
+az containerapp show \
+  --name "$API_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --query "{name:name,latestRevision:properties.latestRevisionName,ready:properties.latestReadyRevisionName}" \
+  -o table
+
+az containerapp show \
+  --name "$WORKER_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --query "{name:name,latestRevision:properties.latestRevisionName,ready:properties.latestReadyRevisionName}" \
+  -o table
+
+az functionapp function list \
+  --name "$FUNCTION_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  -o table
+```
+
+Verify the frontend production bundle has auth config baked in:
+
+```bash
+curl -s "$SWA_URL" -o /tmp/ats-index.html
+export JS_ASSET="$(grep -o '/assets/[^"]*\.js' /tmp/ats-index.html | head -1)"
+curl -s "${SWA_URL}${JS_ASSET}" -o /tmp/ats-app.js
+grep -q "$FRONTEND_CLIENT_ID" /tmp/ats-app.js
+grep -q "$API_SCOPE" /tmp/ats-app.js
+grep -q "${API_URL}/api" /tmp/ats-app.js
+```
+
+### 12. Browser UAT Checklist
+
+Use the production Static Web Apps URL:
+
+```bash
+open "$SWA_URL"
+```
+
+Validate the full user path:
+
+1. Microsoft sign-in opens and completes successfully.
+2. The app shows **AI-ATS-Resume Scoring agent** after sign-in.
+3. Upload a real PDF or DOCX resume.
+4. Paste a realistic job description.
+5. Click **Screen Resume**.
+6. Confirm the progress panel receives agent events or the polling fallback completes the job.
+7. Confirm the report renders:
+   - score out of 100
+   - keyword, experience, skills, and semantic similarity breakdown
+   - matched keywords
+   - missing keywords
+   - fit summary
+   - privacy / PII badge
+   - human review banner only when the agent flags a real review condition
+8. Click **Screen Another Resume** and confirm the form resets.
+
+### 13. UAT Diagnostics
+
+If the UI shows `Authentication is not configured`, the frontend was built without `VITE_AZURE_CLIENT_ID`. Recheck production environment variables and rerun the frontend workflow.
+
+If upload fails with CORS, confirm:
+
+```bash
+az containerapp show \
+  --name "$API_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --query "properties.template.containers[0].env[?name=='CORS_ORIGINS']"
+```
+
+`CORS_ORIGINS` must include the production SWA origin.
+
+If the UI stays on processing, verify worker logs:
+
+```bash
+az containerapp logs show \
+  --name "$WORKER_CONTAINER_APP_NAME" \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --tail 100
+```
+
+If the Function backup trigger is delayed, sync triggers:
+
+```bash
+az resource invoke-action \
+  --action syncfunctiontriggers \
+  --ids "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}/providers/Microsoft.Web/sites/${FUNCTION_APP_NAME}"
+```
+
+The primary path is API direct enqueue to Service Bus; the blob trigger is a backup path.
 
 ### API Management Note
 
@@ -399,9 +731,11 @@ Approximate monthly cost for low-usage **dev** environment (swedencentral):
 │   ├── modules/           # Terraform modules (storage, ai_services, compute, data, networking, observability, security)
 │   ├── env/               # Environment tfvars (dev, prod)
 │   └── main.tf            # Root module wiring
-├── docs/superpowers/specs/2026-04-08-ats-agent-design.md  # Authoritative design spec
-├── implementation_prompt.md  # Original implementation instructions (historical)
-└── CLAUDE.md              # Project guidance for AI coding agents
+├── docs/
+│   ├── architecture_diagram.py       # Diagrams generator for README architecture image
+│   ├── architecture_requirements.txt # Diagram generation dependency pin
+│   ├── ats_agent_architecture.png    # Generated architecture diagram
+│   └── superpowers/specs/2026-04-08-ats-agent-design.md  # Authoritative design spec
 ```
 
 ## Implementation Status
