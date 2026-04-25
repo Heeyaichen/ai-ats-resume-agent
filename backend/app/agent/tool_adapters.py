@@ -73,7 +73,7 @@ def _make_extract_adapter(settings: Settings, blob_adapter: Any | None) -> Any:
 
 def _make_detect_language_adapter(settings: Settings) -> Any:
     async def detect_language(args: dict, memory: AgentMemory) -> dict:
-        text = args.get("text", "")[:500]  # Design spec: first 500 chars.
+        text = (args.get("text") or memory.raw_resume_text or "")[:500]
 
         if settings.translator_endpoint:
             from backend.app.services.translator import TranslatorAdapter
@@ -117,7 +117,7 @@ def _make_translate_adapter(settings: Settings) -> Any:
 
 def _make_pii_safety_adapter(settings: Settings) -> Any:
     async def check_pii_and_safety(args: dict, memory: AgentMemory) -> dict:
-        text = args.get("text", "")
+        text = args.get("text") or memory.raw_resume_text or ""
 
         if settings.language_endpoint or settings.content_safety_endpoint:
             from backend.app.services.pii_safety import PIISafetyService
@@ -148,10 +148,12 @@ def _make_score_adapter(settings: Settings) -> Any:
         from backend.app.services.openai_adapter import OpenAIAdapter
         from backend.app.models.tools import ScoreResumeInput
 
+        resume_text = args.get("resume_text") or memory.sanitized_resume_text or memory.raw_resume_text or ""
+
         adapter = OpenAIAdapter(settings)
         input_data = ScoreResumeInput(
             job_description=args.get("job_description", memory.job_description),
-            resume_text=args.get("resume_text", ""),
+            resume_text=resume_text,
         )
         result = await adapter.score_resume(input_data)
         return result.model_dump()
@@ -167,7 +169,7 @@ def _make_similarity_adapter(settings: Settings) -> Any:
         from backend.app.services.openai_adapter import OpenAIAdapter
 
         jd_text = args.get("job_description", memory.job_description)
-        resume_text = args.get("resume_text", "")
+        resume_text = args.get("resume_text") or memory.sanitized_resume_text or memory.raw_resume_text or ""
         cache_hit = False
 
         # Check Redis cache.
@@ -277,13 +279,16 @@ def _make_fit_summary_adapter(settings: Settings) -> Any:
         from backend.app.services.openai_adapter import OpenAIAdapter
         from backend.app.models.tools import GenerateFitSummaryInput
 
+        score_data = memory.get_score_result() or {}
+        resume_text = args.get("resume_text") or memory.sanitized_resume_text or memory.raw_resume_text or ""
+
         adapter = OpenAIAdapter(settings)
         input_data = GenerateFitSummaryInput(
-            score=args.get("score", 0),
-            matched_keywords=args.get("matched_keywords", []),
-            missing_keywords=args.get("missing_keywords", []),
+            score=args.get("score") or score_data.get("score", 0),
+            matched_keywords=args.get("matched_keywords") or score_data.get("matched_keywords", []),
+            missing_keywords=args.get("missing_keywords") or score_data.get("missing_keywords", []),
             job_description=args.get("job_description", memory.job_description),
-            resume_text=args.get("resume_text", ""),
+            resume_text=resume_text,
         )
         result = await adapter.generate_fit_summary(input_data)
         return result.model_dump()
