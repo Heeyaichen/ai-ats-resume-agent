@@ -55,7 +55,7 @@ const UploadPanel: React.FC<Props> = ({ disabled, onFileSelected }) => {
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className="flex items-center justify-center gap-2.5 rounded-lg border border-dashed border-glass-border bg-glass-panel px-4 py-8 text-secondary transition-colors hover:border-accent/40 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-dashed border-glass-border bg-glass-panel px-4 py-8 text-secondary transition-colors hover:border-accent/40 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
       >
         {fileName ? (
           <>
