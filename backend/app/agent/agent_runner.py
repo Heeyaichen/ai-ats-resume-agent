@@ -239,6 +239,11 @@ class AgentRunner:
 
                 elif choice.finish_reason == "stop":
                     # Model finished without tool calls — check if we're done.
+                    # If required tools are missing but extraction succeeded,
+                    # deterministically run the missing tools before finishing.
+                    if not memory.all_required_complete and memory.extraction_done:
+                        await self._run_missing_required_tools(memory, event_callback)
+
                     completion = self._policy.check_completion(memory)
                     if completion.force_flag:
                         await self._handle_flag(completion, memory, event_callback)
@@ -310,6 +315,88 @@ class AgentRunner:
         if decision.force_flag:
             memory.human_review_flagged = True
             memory.human_review_reasons.append(decision.flag_reason)
+
+    async def _run_missing_required_tools(
+        self,
+        memory: AgentMemory,
+        event_callback: Callable[[dict[str, Any]], Awaitable[None]] | None,
+    ) -> None:
+        """Deterministically run missing required tools using memory state.
+
+        Called when the model stops early but extraction produced usable text.
+        Runs check_pii_and_safety (if not done), then score_resume,
+        compute_semantic_similarity, and generate_fit_summary.
+        """
+        resume_text = memory.sanitized_resume_text or memory.raw_resume_text
+
+        # Don't force scoring if extraction produced no usable text.
+        if not resume_text or len(resume_text.strip()) < 20:
+            return
+
+        tool_order = ["check_pii_and_safety", "score_resume",
+                       "compute_semantic_similarity", "generate_fit_summary"]
+
+        for tool_name in tool_order:
+            if tool_name in memory.completed_tools:
+                continue
+
+            # Build deterministic arguments from memory.
+            args = self._build_deterministic_args(tool_name, memory)
+
+            # Emit tool_call event.
+            if event_callback is not None:
+                from backend.app.agent.tool_executor import _sanitize_arguments
+                call_event = ToolCallEvent(
+                    job_id=memory.job_id,
+                    iteration=memory.total_iterations + 1,
+                    tool_name=tool_name,
+                    arguments_summary=_sanitize_arguments(tool_name, args),
+                )
+                await event_callback(call_event.model_dump(mode="json"))
+
+            try:
+                result = await self._executor.execute(
+                    tool_name, args, memory,
+                    event_callback=event_callback,
+                )
+                memory.messages.append({
+                    "role": "tool",
+                    "tool_call_id": f"runtime-{tool_name}",
+                    "content": json.dumps(result, default=str),
+                })
+            except Exception as exc:
+                logger.warning(
+                    "Runtime completion: tool %s failed: %s", tool_name, exc,
+                )
+
+    def _build_deterministic_args(
+        self, tool_name: str, memory: AgentMemory,
+    ) -> dict[str, Any]:
+        """Build tool arguments from memory for deterministic execution."""
+        resume_text = memory.sanitized_resume_text or memory.raw_resume_text
+
+        if tool_name == "check_pii_and_safety":
+            return {"text": resume_text}
+        if tool_name == "score_resume":
+            return {
+                "resume_text": resume_text,
+                "job_description": memory.job_description,
+            }
+        if tool_name == "compute_semantic_similarity":
+            return {
+                "resume_text": resume_text,
+                "job_description": memory.job_description,
+            }
+        if tool_name == "generate_fit_summary":
+            score_data = memory.get_score_result() or {}
+            return {
+                "resume_text": resume_text,
+                "job_description": memory.job_description,
+                "score": score_data.get("score", 0),
+                "matched_keywords": score_data.get("matched_keywords", []),
+                "missing_keywords": score_data.get("missing_keywords", []),
+            }
+        return {}
 
     def _compile_result(self, memory: AgentMemory) -> AgentResult:
         """Build the final AgentResult from memory state."""

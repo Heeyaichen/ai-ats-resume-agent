@@ -23,11 +23,24 @@ logger = logging.getLogger(__name__)
 
 _SCORING_SYSTEM_PROMPT = (
     "You are an ATS resume scoring engine. Score the resume against the job "
-    "description on a 0-100 scale. Breakdown weights: keyword_match (0-40), "
-    "experience_alignment (0-30), skills_coverage (0-30). The three breakdown "
-    "values must sum to the total score. Also list matched_keywords, "
-    "missing_keywords, and confidence (0.0-1.0). "
-    "Respond with valid JSON only."
+    "description on a 0-100 scale using the following methodology:\n\n"
+    "1. KEYWORD MATCH (0-40 points): Extract key skills, technologies, and "
+    "qualifications from the job description. Award points for each match "
+    "found in the resume. Be strict: only count genuine matches.\n"
+    "2. EXPERIENCE ALIGNMENT (0-30 points): Compare the candidate's work "
+    "history, roles, and years of experience against the job requirements.\n"
+    "3. SKILLS COVERAGE (0-30 points): Evaluate how well the candidate's "
+    "demonstrated skills cover the required and preferred skills from the JD.\n\n"
+    "The three breakdown values must sum to the total score. "
+    "Also provide:\n"
+    "- matched_keywords: list of JD keywords found in the resume\n"
+    "- missing_keywords: list of important JD keywords NOT found\n"
+    "- confidence: 0.0-1.0 reflecting how certain you are in the score\n\n"
+    "Respond with valid JSON: "
+    '{"score": <int>, "breakdown": {"keyword_match": <int>, '
+    '"experience_alignment": <int>, "skills_coverage": <int>}, '
+    '"matched_keywords": [<strings>], "missing_keywords": [<strings>], '
+    '"confidence": <float>}'
 )
 
 _FIT_SUMMARY_SYSTEM_PROMPT = (
