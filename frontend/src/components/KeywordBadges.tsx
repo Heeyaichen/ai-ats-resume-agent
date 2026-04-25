@@ -19,9 +19,9 @@ const KeywordBadges: React.FC<Props> = ({ matched, missing }) => (
           {matched.map((kw) => (
             <span
               key={kw}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#34c759]/[0.08] px-2.5 py-1 text-xs font-medium text-label"
+              className="inline-flex items-center gap-1 rounded-lg bg-success/[0.08] px-2.5 py-1 text-xs font-medium text-label"
             >
-              <Check className="h-3 w-3 text-[#34c759]" />
+              <Check className="h-3 w-3 text-success" />
               {kw}
             </span>
           ))}
@@ -38,9 +38,9 @@ const KeywordBadges: React.FC<Props> = ({ matched, missing }) => (
           {missing.map((kw) => (
             <span
               key={kw}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#ff3b30]/[0.06] px-2.5 py-1 text-xs font-medium text-label"
+              className="inline-flex items-center gap-1 rounded-lg bg-danger/[0.06] px-2.5 py-1 text-xs font-medium text-label"
             >
-              <X className="h-3 w-3 text-[#ff3b30]" />
+              <X className="h-3 w-3 text-danger" />
               {kw}
             </span>
           ))}

@@ -55,7 +55,7 @@ const UploadPanel: React.FC<Props> = ({ disabled, onFileSelected }) => {
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className="flex items-center justify-center gap-2.5 rounded-lg border border-dashed border-secondary/40 px-4 py-8 text-secondary transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40"
+        className="flex items-center justify-center gap-2.5 rounded-lg border border-dashed border-glass-border bg-glass-panel px-4 py-8 text-secondary transition-colors hover:border-accent/40 hover:text-accent disabled:pointer-events-none disabled:opacity-40"
       >
         {fileName ? (
           <>
@@ -80,7 +80,7 @@ const UploadPanel: React.FC<Props> = ({ disabled, onFileSelected }) => {
       />
 
       {error && (
-        <p className="flex items-center gap-1.5 text-sm text-[#ff3b30]">
+        <p className="flex items-center gap-1.5 text-sm text-danger">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>
