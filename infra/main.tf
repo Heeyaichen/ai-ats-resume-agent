@@ -102,6 +102,17 @@ module "compute" {
   search_primary_key                     = module.data.search_primary_key
   application_insights_connection_string = module.observability.application_insights_connection_string
 
+  # AI Service connections.
+  doc_intelligence_endpoint = module.ai_services.doc_intelligence_endpoint
+  doc_intelligence_key      = module.ai_services.doc_intelligence_key
+  translator_endpoint       = module.ai_services.translator_endpoint
+  translator_key            = module.ai_services.translator_key
+  translator_region         = var.location
+  language_endpoint         = module.ai_services.language_endpoint
+  language_key              = module.ai_services.language_key
+  content_safety_endpoint   = module.ai_services.content_safety_endpoint
+  content_safety_key        = module.ai_services.content_safety_key
+
   # SKU overrides.
   acr_sku                 = var.acr_sku
   api_cpu                 = var.api_cpu

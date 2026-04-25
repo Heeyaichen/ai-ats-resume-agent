@@ -45,6 +45,29 @@ variable "application_insights_connection_string" {
   type      = string
   sensitive = true
 }
+
+# ── AI Service connections ──────────────────────────────────────
+variable "doc_intelligence_endpoint" { type = string }
+variable "doc_intelligence_key" {
+  type      = string
+  sensitive = true
+}
+variable "translator_endpoint" { type = string }
+variable "translator_key" {
+  type      = string
+  sensitive = true
+}
+variable "translator_region" { type = string }
+variable "language_endpoint" { type = string }
+variable "language_key" {
+  type      = string
+  sensitive = true
+}
+variable "content_safety_endpoint" { type = string }
+variable "content_safety_key" {
+  type      = string
+  sensitive = true
+}
 variable "cors_origins" {
   description = "Comma-separated allowed CORS origins for the API."
   type        = string

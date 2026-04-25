@@ -111,6 +111,42 @@ resource "azurerm_container_app" "api" {
         name  = "CORS_ORIGINS"
         value = var.cors_origins
       }
+      env {
+        name  = "DOCUMENT_INTELLIGENCE_ENDPOINT"
+        value = var.doc_intelligence_endpoint
+      }
+      env {
+        name        = "DOCUMENT_INTELLIGENCE_KEY"
+        secret_name = "doc-intelligence-key"
+      }
+      env {
+        name  = "TRANSLATOR_ENDPOINT"
+        value = var.translator_endpoint
+      }
+      env {
+        name        = "TRANSLATOR_KEY"
+        secret_name = "translator-key"
+      }
+      env {
+        name  = "TRANSLATOR_REGION"
+        value = var.translator_region
+      }
+      env {
+        name  = "LANGUAGE_ENDPOINT"
+        value = var.language_endpoint
+      }
+      env {
+        name        = "LANGUAGE_KEY"
+        secret_name = "language-key"
+      }
+      env {
+        name  = "CONTENT_SAFETY_ENDPOINT"
+        value = var.content_safety_endpoint
+      }
+      env {
+        name        = "CONTENT_SAFETY_KEY"
+        secret_name = "content-safety-key"
+      }
     }
   }
 
@@ -142,6 +178,22 @@ resource "azurerm_container_app" "api" {
   secret {
     name  = "app-insights-conn-str"
     value = var.application_insights_connection_string
+  }
+  secret {
+    name  = "doc-intelligence-key"
+    value = var.doc_intelligence_key
+  }
+  secret {
+    name  = "translator-key"
+    value = var.translator_key
+  }
+  secret {
+    name  = "language-key"
+    value = var.language_key
+  }
+  secret {
+    name  = "content-safety-key"
+    value = var.content_safety_key
   }
 }
 
@@ -219,6 +271,42 @@ resource "azurerm_container_app" "worker" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "app-insights-conn-str"
       }
+      env {
+        name  = "DOCUMENT_INTELLIGENCE_ENDPOINT"
+        value = var.doc_intelligence_endpoint
+      }
+      env {
+        name        = "DOCUMENT_INTELLIGENCE_KEY"
+        secret_name = "doc-intelligence-key"
+      }
+      env {
+        name  = "TRANSLATOR_ENDPOINT"
+        value = var.translator_endpoint
+      }
+      env {
+        name        = "TRANSLATOR_KEY"
+        secret_name = "translator-key"
+      }
+      env {
+        name  = "TRANSLATOR_REGION"
+        value = var.translator_region
+      }
+      env {
+        name  = "LANGUAGE_ENDPOINT"
+        value = var.language_endpoint
+      }
+      env {
+        name        = "LANGUAGE_KEY"
+        secret_name = "language-key"
+      }
+      env {
+        name  = "CONTENT_SAFETY_ENDPOINT"
+        value = var.content_safety_endpoint
+      }
+      env {
+        name        = "CONTENT_SAFETY_KEY"
+        secret_name = "content-safety-key"
+      }
     }
   }
 
@@ -249,6 +337,22 @@ resource "azurerm_container_app" "worker" {
   secret {
     name  = "app-insights-conn-str"
     value = var.application_insights_connection_string
+  }
+  secret {
+    name  = "doc-intelligence-key"
+    value = var.doc_intelligence_key
+  }
+  secret {
+    name  = "translator-key"
+    value = var.translator_key
+  }
+  secret {
+    name  = "language-key"
+    value = var.language_key
+  }
+  secret {
+    name  = "content-safety-key"
+    value = var.content_safety_key
   }
 }
 
