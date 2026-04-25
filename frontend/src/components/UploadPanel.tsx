@@ -44,20 +44,23 @@ const UploadPanel: React.FC<Props> = ({ disabled, onFileSelected }) => {
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        Resume (PDF / DOCX, max 10 MB)
+      <label className="block text-sm font-medium text-label">
+        Resume
+        <span className="ml-1 font-normal text-secondary">
+          PDF or DOCX, up to 10 MB
+        </span>
       </label>
 
       <button
         type="button"
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-6 text-gray-500 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50 w-full justify-center transition-colors"
+        className="flex items-center justify-center gap-2.5 rounded-lg border border-dashed border-secondary/40 px-4 py-8 text-secondary transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-40"
       >
         {fileName ? (
           <>
             <FileText className="h-5 w-5" />
-            <span className="truncate max-w-xs">{fileName}</span>
+            <span className="truncate max-w-xs text-label">{fileName}</span>
           </>
         ) : (
           <>
@@ -77,7 +80,7 @@ const UploadPanel: React.FC<Props> = ({ disabled, onFileSelected }) => {
       />
 
       {error && (
-        <p className="flex items-center gap-1 text-sm text-red-600">
+        <p className="flex items-center gap-1.5 text-sm text-[#ff3b30]">
           <AlertCircle className="h-4 w-4" />
           {error}
         </p>

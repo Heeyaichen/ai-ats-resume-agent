@@ -20,7 +20,7 @@ import ScoreBreakdown from "./components/ScoreBreakdown";
 import KeywordBadges from "./components/KeywordBadges";
 import HumanReviewBanner from "./components/HumanReviewBanner";
 import PrivacyBadges from "./components/PrivacyBadges";
-import { Loader2, Send, RefreshCw, LogOut } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, LogOut } from "lucide-react";
 
 const Home: React.FC = () => {
   const { instance, accounts } = useMsal();
@@ -50,7 +50,6 @@ const Home: React.FC = () => {
   const handleSSEEvent = useCallback(
     (evt: SSEEvent) => {
       if (evt.event_type === "complete") {
-        // The complete event carries the full result directly.
         setScoreData(evt.result);
       } else if (evt.event_type === "error") {
         setErrorMsg(evt.message);
@@ -65,7 +64,6 @@ const Home: React.FC = () => {
     handleSSEEvent,
   );
 
-  // Derive agent_running from first tool_call event.
   React.useEffect(() => {
     if (
       jobState === "queued" &&
@@ -75,7 +73,6 @@ const Home: React.FC = () => {
     }
   }, [sseEvents, jobState]);
 
-  // Derive completion from last SSE event.
   React.useEffect(() => {
     const last = sseEvents[sseEvents.length - 1];
     if (last?.event_type === "complete") {
@@ -88,9 +85,6 @@ const Home: React.FC = () => {
   }, [sseEvents]);
 
   // ── Score polling fallback ──────────────────────────────────
-  // If SSE misses the completion (e.g. blob trigger polling gap),
-  // poll GET /api/score/{job_id} every 5s to surface the result.
-  // Transition on terminal status even when score_data is absent.
   React.useEffect(() => {
     if (!jobId || isTerminalState(jobState)) return;
     const id = setInterval(async () => {
@@ -122,7 +116,6 @@ const Home: React.FC = () => {
     setScoreData(null);
 
     try {
-      // Acquire token only when auth is configured (not local dev bypass).
       if (isAuthConfigured && account) {
         const resp = await instance.acquireTokenSilent(loginRequest);
         setAuthToken(resp.accessToken);
@@ -148,21 +141,25 @@ const Home: React.FC = () => {
   };
 
   // ── Render ────────────────────────────────────────────────────
-  // Auth gating: fail closed in deployed environments without auth config.
   if (!isAuthConfigured && !isLocalDev) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-red-600">
-        Authentication is not configured. Contact your administrator.
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <p className="text-sm text-[#ff3b30]">
+          Authentication is not configured. Contact your administrator.
+        </p>
       </div>
     );
   }
 
   if (isAuthConfigured && !account) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-label">
+          Resume Screen
+        </h1>
         <button
           onClick={handleLogin}
-          className="rounded-lg bg-blue-600 px-6 py-3 text-white font-medium hover:bg-blue-700 transition-colors"
+          className="rounded-lg bg-accent px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
         >
           Sign in with Microsoft
         </button>
@@ -176,51 +173,57 @@ const Home: React.FC = () => {
   const showReviewOnly = isTerminal && !scoreData;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-3xl px-6 py-12">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">ATS Resume Screening Agent</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
-      </div>
+      <header className="flex items-center justify-between pb-10">
+        <h1 className="text-2xl font-semibold tracking-tight text-label">
+          Resume Screen
+        </h1>
+        {isAuthConfigured && (
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-sm text-secondary transition-colors hover:text-label"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign out
+          </button>
+        )}
+      </header>
 
       {/* Upload section */}
       {!isTerminalState(jobState) && (
-        <div className="rounded-xl border bg-white p-6 space-y-5">
+        <div className="rounded-lg border border-separator bg-white p-8 space-y-6">
           <UploadPanel disabled={isBusy} onFileSelected={setFile} />
           <JobDescriptionPanel value={jd} onChange={setJd} disabled={isBusy} />
 
           <button
             onClick={handleUpload}
             disabled={isBusy || !file || !jd.trim() || jd.length > 50000}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-40"
           >
             {isBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4" />
             )}
-            {jobState === "idle" ? "Screen Resume" : "Processing..."}
+            {jobState === "idle" ? "Screen Resume" : "Processing"}
           </button>
         </div>
       )}
 
       {/* Error */}
       {errorMsg && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mt-6 rounded-lg border border-[#ff3b30]/20 bg-[#ff3b30]/[0.04] px-4 py-3 text-sm text-[#ff3b30]">
           {errorMsg}
         </div>
       )}
 
-      {/* Agent trace */}
+      {/* Agent trace during processing */}
       {(jobState === "queued" || jobState === "agent_running") && (
-        <div className="rounded-xl border bg-white p-6">
-          <h2 className="text-lg font-semibold mb-3">Agent Progress</h2>
+        <div className="mt-6 rounded-lg border border-separator bg-white p-8">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
+            Screening Progress
+          </h2>
           <AgentTracePanel events={sseEvents} />
         </div>
       )}
@@ -233,64 +236,88 @@ const Home: React.FC = () => {
             <HumanReviewBanner reason={scoreData.human_review_reason} />
           )}
 
-          {/* Score + breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-xl border bg-white p-6 flex flex-col items-center">
-              <h2 className="text-lg font-semibold mb-4 self-start">Score</h2>
-              <ScoreGauge score={scoreData.score} />
-            </div>
-            <div className="rounded-xl border bg-white p-6">
-              <h2 className="text-lg font-semibold mb-4">Breakdown</h2>
-              <ScoreBreakdown
-                breakdown={scoreData.breakdown}
-                semanticSimilarity={scoreData.semantic_similarity}
-              />
+          {/* Score + Breakdown */}
+          <div className="rounded-lg border border-separator bg-white overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-separator">
+              <div className="p-8 flex flex-col items-center">
+                <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-6 self-start">
+                  Score
+                </p>
+                <ScoreGauge score={scoreData.score} />
+              </div>
+              <div className="p-8">
+                <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-6">
+                  Breakdown
+                </p>
+                <ScoreBreakdown
+                  breakdown={scoreData.breakdown}
+                  semanticSimilarity={scoreData.semantic_similarity}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Keywords */}
-          <div className="rounded-xl border bg-white p-6">
-            <h2 className="text-lg font-semibold mb-3">Keywords</h2>
-            <KeywordBadges
-              matched={scoreData.matched_keywords}
-              missing={scoreData.missing_keywords}
-            />
+          {/* Keywords + Fit Summary */}
+          <div className="rounded-lg border border-separator bg-white overflow-hidden">
+            <div className="p-8 space-y-8">
+              {/* Keywords */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
+                  Keywords
+                </p>
+                <KeywordBadges
+                  matched={scoreData.matched_keywords}
+                  missing={scoreData.missing_keywords}
+                />
+              </div>
+
+              {/* Fit summary */}
+              {scoreData.fit_summary && (
+                <>
+                  <div className="border-t border-separator" />
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-3">
+                      Fit Summary
+                    </p>
+                    <p className="text-sm text-label leading-relaxed">
+                      {scoreData.fit_summary}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Fit summary */}
-          {scoreData.fit_summary && (
-            <div className="rounded-xl border bg-white p-6">
-              <h2 className="text-lg font-semibold mb-2">Fit Summary</h2>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                {scoreData.fit_summary}
-              </p>
-            </div>
-          )}
-
-          {/* Trace */}
-          <div className="rounded-xl border bg-white p-6">
-            <h2 className="text-lg font-semibold mb-3">Agent Trace</h2>
+          {/* Agent Trace */}
+          <div className="rounded-lg border border-separator bg-white p-8">
+            <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
+              Agent Trace
+            </p>
             <AgentTracePanel events={sseEvents} />
           </div>
 
-          {/* Privacy badges (placeholder — real values from agent trace) */}
-          <div className="rounded-xl border bg-white p-6">
-            <h2 className="text-lg font-semibold mb-3">Privacy</h2>
+          {/* Privacy */}
+          <div className="rounded-lg border border-separator bg-white p-8">
+            <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
+              Privacy
+            </p>
             <PrivacyBadges piiRedacted={true} />
           </div>
 
           {/* Reset */}
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 rounded-lg border px-5 py-2.5 font-medium hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Screen Another Resume
-          </button>
+          <div className="pb-8">
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 rounded-lg border border-separator px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Screen Another Resume
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Terminal without score (review-required / unable to score) */}
+      {/* Terminal without score */}
       {showReviewOnly && (
         <div className="space-y-6">
           <HumanReviewBanner
@@ -301,20 +328,22 @@ const Home: React.FC = () => {
             }
           />
 
-          {/* Trace */}
-          <div className="rounded-xl border bg-white p-6">
-            <h2 className="text-lg font-semibold mb-3">Agent Trace</h2>
+          <div className="rounded-lg border border-separator bg-white p-8">
+            <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
+              Agent Trace
+            </p>
             <AgentTracePanel events={sseEvents} />
           </div>
 
-          {/* Reset */}
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 rounded-lg border px-5 py-2.5 font-medium hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Screen Another Resume
-          </button>
+          <div className="pb-8">
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 rounded-lg border border-separator px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Screen Another Resume
+            </button>
+          </div>
         </div>
       )}
     </div>
