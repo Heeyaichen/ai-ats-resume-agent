@@ -8,8 +8,8 @@ interface Props {
 }
 
 const HumanReviewBanner: React.FC<Props> = ({ reason }) => (
-  <div className="flex items-start gap-3 rounded-lg border border-[#ff9500]/20 bg-[#ff9500]/[0.06] px-4 py-3.5">
-    <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#ff9500]" />
+  <div className="flex items-start gap-3 rounded-lg border border-warning/20 bg-warning/[0.06] px-4 py-3.5">
+    <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" />
     <div>
       <p className="text-sm font-semibold text-label">Flagged for Human Review</p>
       <p className="text-sm text-secondary mt-0.5">{reason}</p>

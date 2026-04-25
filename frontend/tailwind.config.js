@@ -5,6 +5,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -15,15 +16,25 @@ export default {
         ],
       },
       colors: {
-        label: "#1d1d1f",
-        secondary: "#86868b",
-        tertiary: "#aeaeb2",
-        surface: "#f5f5f7",
-        separator: "rgba(60, 60, 67, 0.12)",
+        base: "#08090d",
+        "glass-panel": "rgba(255, 255, 255, 0.03)",
+        "glass-border": "rgba(255, 255, 255, 0.08)",
+        "glass-hover": "rgba(255, 255, 255, 0.05)",
+        label: "#e4e4e9",
+        secondary: "#8b8b9e",
+        tertiary: "#5a5a6e",
+        separator: "rgba(255, 255, 255, 0.06)",
         accent: {
-          DEFAULT: "#0071e3",
-          hover: "#0077ed",
+          DEFAULT: "#22d3ee",
+          hover: "#06b6d4",
+          muted: "rgba(34, 211, 238, 0.12)",
         },
+        success: "#34d399",
+        warning: "#fbbf24",
+        danger: "#f87171",
+      },
+      backdropBlur: {
+        xs: "2px",
       },
     },
   },

@@ -144,7 +144,7 @@ const Home: React.FC = () => {
   if (!isAuthConfigured && !isLocalDev) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
-        <p className="text-sm text-[#ff3b30]">
+        <p className="text-sm text-danger">
           Authentication is not configured. Contact your administrator.
         </p>
       </div>
@@ -155,11 +155,11 @@ const Home: React.FC = () => {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <h1 className="text-2xl font-semibold tracking-tight text-label">
-          Resume Screen
+          AI-ATS-Resume Scoring Agent
         </h1>
         <button
           onClick={handleLogin}
-          className="rounded-lg bg-accent px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+          className="rounded-lg bg-accent px-8 py-3 text-sm font-medium text-base transition-colors hover:bg-accent-hover"
         >
           Sign in with Microsoft
         </button>
@@ -177,7 +177,7 @@ const Home: React.FC = () => {
       {/* Header */}
       <header className="flex items-center justify-between pb-10">
         <h1 className="text-2xl font-semibold tracking-tight text-label">
-          Resume Screen
+          AI-ATS-Resume Scoring Agent
         </h1>
         {isAuthConfigured && (
           <button
@@ -192,14 +192,14 @@ const Home: React.FC = () => {
 
       {/* Upload section */}
       {!isTerminalState(jobState) && (
-        <div className="rounded-lg border border-separator bg-white p-8 space-y-6">
+        <div className="glass p-8 space-y-6">
           <UploadPanel disabled={isBusy} onFileSelected={setFile} />
           <JobDescriptionPanel value={jd} onChange={setJd} disabled={isBusy} />
 
           <button
             onClick={handleUpload}
             disabled={isBusy || !file || !jd.trim() || jd.length > 50000}
-            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-40"
+            className="flex items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3 text-sm font-medium text-base transition-colors hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-40"
           >
             {isBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -213,14 +213,14 @@ const Home: React.FC = () => {
 
       {/* Error */}
       {errorMsg && (
-        <div className="mt-6 rounded-lg border border-[#ff3b30]/20 bg-[#ff3b30]/[0.04] px-4 py-3 text-sm text-[#ff3b30]">
+        <div className="mt-6 glass border-danger/20 px-4 py-3 text-sm text-danger">
           {errorMsg}
         </div>
       )}
 
       {/* Agent trace during processing */}
       {(jobState === "queued" || jobState === "agent_running") && (
-        <div className="mt-6 rounded-lg border border-separator bg-white p-8">
+        <div className="mt-6 glass p-8">
           <h2 className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
             Screening Progress
           </h2>
@@ -237,7 +237,7 @@ const Home: React.FC = () => {
           )}
 
           {/* Score + Breakdown */}
-          <div className="rounded-lg border border-separator bg-white overflow-hidden">
+          <div className="glass overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-separator">
               <div className="p-8 flex flex-col items-center">
                 <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-6 self-start">
@@ -258,7 +258,7 @@ const Home: React.FC = () => {
           </div>
 
           {/* Keywords + Fit Summary */}
-          <div className="rounded-lg border border-separator bg-white overflow-hidden">
+          <div className="glass overflow-hidden">
             <div className="p-8 space-y-8">
               {/* Keywords */}
               <div>
@@ -289,7 +289,7 @@ const Home: React.FC = () => {
           </div>
 
           {/* Agent Trace */}
-          <div className="rounded-lg border border-separator bg-white p-8">
+          <div className="glass p-8">
             <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
               Agent Trace
             </p>
@@ -297,7 +297,7 @@ const Home: React.FC = () => {
           </div>
 
           {/* Privacy */}
-          <div className="rounded-lg border border-separator bg-white p-8">
+          <div className="glass p-8">
             <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
               Privacy
             </p>
@@ -308,7 +308,7 @@ const Home: React.FC = () => {
           <div className="pb-8">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 rounded-lg border border-separator px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-white"
+              className="flex items-center gap-2 rounded-lg border border-glass-border px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-glass-hover"
             >
               <ArrowLeft className="h-4 w-4" />
               Screen Another Resume
@@ -328,7 +328,7 @@ const Home: React.FC = () => {
             }
           />
 
-          <div className="rounded-lg border border-separator bg-white p-8">
+          <div className="glass p-8">
             <p className="text-xs font-medium uppercase tracking-wide text-secondary mb-4">
               Agent Trace
             </p>
@@ -338,7 +338,7 @@ const Home: React.FC = () => {
           <div className="pb-8">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2 rounded-lg border border-separator px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-white"
+              className="flex items-center gap-2 rounded-lg border border-glass-border px-6 py-3 text-sm font-medium text-label transition-colors hover:bg-glass-hover"
             >
               <ArrowLeft className="h-4 w-4" />
               Screen Another Resume

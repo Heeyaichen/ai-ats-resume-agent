@@ -19,17 +19,17 @@ const ScoreGauge: React.FC<Props> = ({ score }) => {
 
   const strokeColor =
     normalized >= 70
-      ? "stroke-[#34c759]"
+      ? "stroke-success"
       : normalized >= 40
-        ? "stroke-[#ff9500]"
-        : "stroke-[#ff3b30]";
+        ? "stroke-warning"
+        : "stroke-danger";
 
   const textColor =
     normalized >= 70
-      ? "text-[#34c759]"
+      ? "text-success"
       : normalized >= 40
-        ? "text-[#ff9500]"
-        : "text-[#ff3b30]";
+        ? "text-warning"
+        : "text-danger";
 
   return (
     <div className="flex flex-col items-center gap-0.5">

@@ -41,7 +41,7 @@ const toolDisplayName: Record<string, string> = {
 const TraceCard: React.FC<{ event: SSEEvent }> = ({ event }) => {
   if (event.event_type === "tool_call") {
     return (
-      <div className="flex items-start gap-3 rounded-lg bg-accent/[0.06] px-3.5 py-2.5 text-sm">
+      <div className="flex items-start gap-3 rounded-lg bg-accent-muted px-3.5 py-2.5 text-sm">
         <Wrench className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-accent" />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-label">
@@ -60,8 +60,8 @@ const TraceCard: React.FC<{ event: SSEEvent }> = ({ event }) => {
 
   if (event.event_type === "tool_result") {
     return (
-      <div className="flex items-start gap-3 rounded-lg bg-[#34c759]/[0.06] px-3.5 py-2.5 text-sm">
-        <CheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#34c759]" />
+      <div className="flex items-start gap-3 rounded-lg bg-success/[0.06] px-3.5 py-2.5 text-sm">
+        <CheckCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-success" />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-label">
             {toolDisplayName[event.tool_name] ?? event.tool_name}
@@ -79,9 +79,9 @@ const TraceCard: React.FC<{ event: SSEEvent }> = ({ event }) => {
 
   if (event.event_type === "error") {
     return (
-      <div className="flex items-start gap-3 rounded-lg bg-[#ff3b30]/[0.06] px-3.5 py-2.5 text-sm">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#ff3b30]" />
-        <p className="text-[#ff3b30]">{event.message}</p>
+      <div className="flex items-start gap-3 rounded-lg bg-danger/[0.06] px-3.5 py-2.5 text-sm">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-danger" />
+        <p className="text-danger">{event.message}</p>
       </div>
     );
   }
