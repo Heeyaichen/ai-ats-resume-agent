@@ -4,21 +4,11 @@ AI-powered Applicant Tracking System (ATS) Resume Screening Agent. Accepts PDF/D
 
 ## Architecture Overview
 
-```
-SPA (React) → CDN → Static Web Apps
-                    ↓
-              API Management (JWT, rate limit) [dev only]
-                    ↓
-              FastAPI (Container Apps) → Service Bus (direct enqueue)
-                    ↑         ↓
-              SSE stream  Blob Storage → Function (backup trigger)
-                    ↑                       ↓
-              Worker (guarded agent loop) ←─┘
-                              ↓
-                    Azure OpenAI + 9 tool functions
-                    (Document Intelligence, Translator, AI Language,
-                     Content Safety, Embeddings, AI Search, Cosmos DB)
-```
+![AI-ATS-Resume Scoring Agent runtime architecture](docs/ats_agent_architecture.png)
+
+The diagram above shows the cost-optimized production runtime path: Static Web Apps calls the FastAPI Container App directly, the API stores the resume and enqueues work on Service Bus, and the worker runs the guarded agent loop against Azure AI services before persisting scores, traces, and review state. API Management and Front Door remain optional/dev-only infrastructure paths documented below.
+
+Diagram source: [`docs/architecture_diagram.py`](docs/architecture_diagram.py), generated with the [Diagrams](https://github.com/mingrammer/diagrams) library.
 
 **Data flow:**
 
